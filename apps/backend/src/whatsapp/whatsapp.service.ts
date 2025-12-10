@@ -12,6 +12,7 @@ import makeWASocket, {
 import { Boom } from '@hapi/boom';
 import { join } from 'path';
 import * as fs from 'fs';
+import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWhatsAppInstanceDto } from './dto/create-whatsapp-instance.dto';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -231,11 +232,13 @@ export class WhatsappService {
     }
 
     const connection = this.connections.get(instanceId);
-    if (!connection || !connection.qr) {
-      return { qrCode: null, message: 'No QR code available' };
-    }
+    const qrCode = connection?.qr || instance.qrCode || null;
 
-    return { qrCode: connection.qr };
+    // Devolver información completa de la instancia con QR actualizado
+    return {
+      ...instance,
+      qrCode,
+    };
   }
 
   private async initializeConnection(instanceId: string, organizationId: string) {
@@ -277,9 +280,12 @@ export class WhatsappService {
 
         // Actualizar QR code
         if (qr) {
+          // Convertir QR string a Data URL para que el frontend pueda mostrarlo
+          const qrDataURL = await QRCode.toDataURL(qr);
+          
           this.connections.set(instanceId, {
             socket,
-            qr,
+            qr: qrDataURL,
             status: WhatsAppStatus.QR_CODE,
           });
 
@@ -287,7 +293,7 @@ export class WhatsappService {
             where: { id: instanceId },
             data: {
               status: WhatsAppStatus.QR_CODE,
-              qrCode: qr,
+              qrCode: qrDataURL,
             },
           });
 
