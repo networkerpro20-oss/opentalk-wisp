@@ -13,23 +13,37 @@ if ! command -v pnpm &> /dev/null; then
     npm install -g pnpm@8.15.0
 fi
 
-# Instalar dependencias del workspace (sin dev dependencies en producción)
+# Instalar dependencias del workspace (CON dev dependencies para build)
 echo "📦 Instalando dependencias del workspace..."
-pnpm install --frozen-lockfile --prod --shamefully-hoist
+pnpm install --frozen-lockfile --shamefully-hoist
 
 # Ir al directorio del backend
 cd apps/backend
 
 echo "📦 Instalando dependencias del backend..."
-pnpm install --prod --shamefully-hoist
+pnpm install --shamefully-hoist
 
 # Generar Prisma Client
 echo "🔧 Generando Prisma Client..."
 npx prisma generate
 
+# Verificar que DATABASE_URL existe
+if [ -z "$DATABASE_URL" ]; then
+    echo "❌ ERROR: DATABASE_URL no está configurado"
+    exit 1
+fi
+
+echo "✅ DATABASE_URL configurado correctamente"
+
 # Ejecutar migraciones
 echo "🔧 Ejecutando migraciones..."
-npx prisma migrate deploy
+npx prisma migrate deploy --schema=./prisma/schema.prisma
+
+# Verificar que las tablas se crearon
+echo "🔍 Verificando tablas creadas..."
+npx prisma db execute --stdin <<SQL
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;
+SQL
 
 # Build del backend
 echo "🏗️  Building backend..."
