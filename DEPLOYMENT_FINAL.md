@@ -16,20 +16,21 @@
 
 ---
 
-## 🚀 Configuración FINAL de Render
+# ✅ CONFIGURACIÓN EXACTA PARA RENDER
 
-### Start Command (IMPORTANTE - USA ESTO):
+## 🎯 Start Command (COPIA ESTO EXACTAMENTE):
 
 ```bash
-cd apps/backend && ./start-production.sh
+cd apps/backend && chmod +x start-production.sh && ./start-production.sh
 ```
 
 **NO uses:**
 - ❌ `cd apps/backend && pnpm start`
 - ❌ `cd apps/backend && node dist/main.js`
+- ❌ `pnpm run start`
 
 **Usa EXACTAMENTE:**
-- ✅ `cd apps/backend && ./start-production.sh`
+- ✅ `cd apps/backend && chmod +x start-production.sh && ./start-production.sh`
 
 Este script automáticamente:
 1. Ejecuta `prisma migrate deploy` (crea todas las tablas)
