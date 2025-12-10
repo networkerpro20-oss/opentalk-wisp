@@ -13,7 +13,7 @@ if ! command -v pnpm &> /dev/null; then
     npm install -g pnpm@8.15.0
 fi
 
-# Instalar dependencias del workspace (CON dev dependencies para build)
+# Instalar dependencias del workspace
 echo "📦 Instalando dependencias del workspace..."
 pnpm install --frozen-lockfile --shamefully-hoist
 
@@ -27,26 +27,17 @@ pnpm install --shamefully-hoist
 echo "🔧 Generando Prisma Client..."
 npx prisma generate
 
-# Verificar que DATABASE_URL existe
-if [ -z "$DATABASE_URL" ]; then
-    echo "❌ ERROR: DATABASE_URL no está configurado"
-    exit 1
-fi
-
-echo "✅ DATABASE_URL configurado correctamente"
-
-# Ejecutar migraciones
-echo "🔧 Ejecutando migraciones..."
-npx prisma migrate deploy --schema=./prisma/schema.prisma
-
-# Verificar que las tablas se crearon
-echo "🔍 Verificando tablas creadas..."
-npx prisma db execute --stdin <<SQL
-SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;
-SQL
-
-# Build del backend
+# Build del backend (antes de migraciones para ahorrar memoria)
 echo "🏗️  Building backend..."
 pnpm build
+
+# Ejecutar migraciones (después del build)
+echo "🔧 Ejecutando migraciones de base de datos..."
+if [ -z "$DATABASE_URL" ]; then
+    echo "⚠️  WARNING: DATABASE_URL no está configurado, las migraciones se ejecutarán en el start"
+else
+    echo "✅ DATABASE_URL configurado, ejecutando migraciones..."
+    npx prisma migrate deploy || echo "⚠️  Migraciones fallarán, se reintentarán en el start"
+fi
 
 echo "✅ Build completado!"
