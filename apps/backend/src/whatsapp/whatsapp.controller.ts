@@ -12,6 +12,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { WhatsappService } from './whatsapp.service';
 import { CreateWhatsAppInstanceDto } from './dto/create-whatsapp-instance.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { SendMediaDto } from './dto/send-media.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('WhatsApp')
@@ -58,5 +59,11 @@ export class WhatsappController {
   @ApiOperation({ summary: 'Send a WhatsApp message' })
   sendMessage(@Req() req: any, @Body() sendDto: SendMessageDto) {
     return this.whatsappService.sendMessage(req.user.organizationId, sendDto);
+  }
+
+  @Post('send-media')
+  @ApiOperation({ summary: 'Send WhatsApp media (image, video, audio, document)' })
+  sendMedia(@Req() req: any, @Body() sendDto: SendMediaDto) {
+    return this.whatsappService.sendMedia(req.user.organizationId, sendDto);
   }
 }

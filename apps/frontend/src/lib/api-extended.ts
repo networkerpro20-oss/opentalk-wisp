@@ -72,4 +72,17 @@ export const whatsappAPI = {
     const { data } = await api.post('/whatsapp/send', messageData);
     return data;
   },
+
+  sendMedia: async (mediaData: { 
+    instanceId: string; 
+    to: string; 
+    type: 'image' | 'video' | 'audio' | 'document';
+    mediaUrl: string;
+    caption?: string;
+    fileName?: string;
+    mimeType?: string;
+  }) => {
+    const { data } = await api.post('/whatsapp/send-media', mediaData);
+    return data;
+  },
 };

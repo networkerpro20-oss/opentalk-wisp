@@ -16,6 +16,7 @@ import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWhatsAppInstanceDto } from './dto/create-whatsapp-instance.dto';
 import { SendMessageDto } from './dto/send-message.dto';
+import { SendMediaDto, MediaType } from './dto/send-media.dto';
 import { WhatsAppStatus, MessageDirection, MessageType, MessageStatus } from '@prisma/client';
 
 interface WAConnection {
@@ -222,6 +223,150 @@ export class WhatsappService {
     }
   }
 
+  async sendMedia(organizationId: string, sendDto: SendMediaDto) {
+    const instance = await this.prisma.whatsAppInstance.findFirst({
+      where: { id: sendDto.instanceId, organizationId },
+    });
+
+    if (!instance) {
+      throw new NotFoundException(`WhatsApp instance not found`);
+    }
+
+    const connection = this.connections.get(sendDto.instanceId);
+    if (!connection || connection.status !== WhatsAppStatus.CONNECTED) {
+      throw new Error('WhatsApp instance is not connected');
+    }
+
+    // Formatear número de teléfono
+    const phoneNumber = sendDto.to.replace(/\D/g, '');
+    const jid = `${phoneNumber}@s.whatsapp.net`;
+
+    try {
+      let messageContent: any = {};
+      let messageType: any = 'TEXT';
+
+      // Descargar archivo si es URL, o usar base64 directamente
+      let mediaBuffer: Buffer;
+      
+      if (sendDto.mediaUrl.startsWith('http://') || sendDto.mediaUrl.startsWith('https://')) {
+        // Descargar desde URL usando fetch
+        const response = await fetch(sendDto.mediaUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        mediaBuffer = Buffer.from(arrayBuffer);
+      } else if (sendDto.mediaUrl.startsWith('data:')) {
+        // Convertir Data URL a buffer
+        const base64Data = sendDto.mediaUrl.split(',')[1];
+        mediaBuffer = Buffer.from(base64Data, 'base64');
+      } else {
+        // Asumir que es base64 puro
+        mediaBuffer = Buffer.from(sendDto.mediaUrl, 'base64');
+      }
+
+      // Construir mensaje según tipo de media
+      switch (sendDto.type) {
+        case MediaType.IMAGE:
+          messageContent = {
+            image: mediaBuffer,
+            caption: sendDto.caption || '',
+          };
+          messageType = 'IMAGE';
+          break;
+
+        case MediaType.VIDEO:
+          messageContent = {
+            video: mediaBuffer,
+            caption: sendDto.caption || '',
+            mimetype: sendDto.mimeType || 'video/mp4',
+          };
+          messageType = 'VIDEO';
+          break;
+
+        case MediaType.AUDIO:
+          messageContent = {
+            audio: mediaBuffer,
+            mimetype: sendDto.mimeType || 'audio/mp4',
+            ptt: false, // Push-to-talk (mensaje de voz) = false
+          };
+          messageType = 'AUDIO';
+          break;
+
+        case MediaType.DOCUMENT:
+          messageContent = {
+            document: mediaBuffer,
+            mimetype: sendDto.mimeType || 'application/pdf',
+            fileName: sendDto.fileName || 'document.pdf',
+            caption: sendDto.caption || '',
+          };
+          messageType = 'DOCUMENT';
+          break;
+
+        default:
+          throw new Error(`Unsupported media type: ${sendDto.type}`);
+      }
+
+      // Enviar mensaje con media
+      const sent = await connection.socket.sendMessage(jid, messageContent);
+
+      // Buscar o crear contacto
+      let contact = await this.prisma.contact.findFirst({
+        where: { organizationId, phone: phoneNumber },
+      });
+
+      if (!contact) {
+        contact = await this.prisma.contact.create({
+          data: {
+            name: phoneNumber,
+            phone: phoneNumber,
+            organizationId,
+          },
+        });
+      }
+
+      // Buscar o crear conversación
+      let conversation = await this.prisma.conversation.findFirst({
+        where: {
+          contactId: contact.id,
+          whatsappInstanceId: sendDto.instanceId,
+          organizationId,
+        },
+      });
+
+      if (!conversation) {
+        conversation = await this.prisma.conversation.create({
+          data: {
+            contactId: contact.id,
+            whatsappInstanceId: sendDto.instanceId,
+            organizationId,
+            channel: 'WHATSAPP',
+            status: 'OPEN',
+          },
+        });
+      }
+
+      // Guardar mensaje en BD
+      const message = await this.prisma.message.create({
+        data: {
+          content: sendDto.caption || `[${sendDto.type}]`,
+          type: messageType,
+          direction: MessageDirection.OUTBOUND,
+          status: MessageStatus.SENT,
+          mediaUrl: sendDto.mediaUrl,
+          conversationId: conversation.id,
+          contactId: contact.id,
+          whatsappInstanceId: sendDto.instanceId,
+          whatsappMessageId: sent?.key?.id || '',
+          organizationId,
+        },
+      });
+
+      this.logger.log(`Media sent to ${phoneNumber}: ${sendDto.type}`);
+      return message;
+    } catch (error) {
+      this.logger.error(`Error sending media: ${error.message}`);
+      throw error;
+    }
+  }
+
   async getQRCode(organizationId: string, instanceId: string) {
     const instance = await this.prisma.whatsAppInstance.findFirst({
       where: { id: instanceId, organizationId },
@@ -417,19 +562,77 @@ export class WhatsappService {
         });
       }
 
-      // Extraer contenido del mensaje
-      const content =
-        msg.message.conversation ||
-        msg.message.extendedTextMessage?.text ||
-        'Media message';
+      // Extraer contenido del mensaje y tipo
+      let content = '';
+      let messageType: any = MessageType.TEXT; // Usar any temporalmente para evitar error de tipos
+      let mediaUrl: string | null = null;
+
+      // Determinar tipo de mensaje y extraer contenido
+      if (msg.message.conversation || msg.message.extendedTextMessage) {
+        content = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+        messageType = 'TEXT';
+      } else if (msg.message.imageMessage) {
+        content = msg.message.imageMessage.caption || '[Imagen]';
+        messageType = 'IMAGE';
+        // Descargar y guardar imagen
+        try {
+          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          const base64 = buffer.toString('base64');
+          mediaUrl = `data:image/jpeg;base64,${base64}`;
+        } catch (err) {
+          this.logger.error(`Error downloading image: ${err.message}`);
+        }
+      } else if (msg.message.videoMessage) {
+        content = msg.message.videoMessage.caption || '[Video]';
+        messageType = 'VIDEO';
+        try {
+          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          const base64 = buffer.toString('base64');
+          mediaUrl = `data:video/mp4;base64,${base64}`;
+        } catch (err) {
+          this.logger.error(`Error downloading video: ${err.message}`);
+        }
+      } else if (msg.message.audioMessage) {
+        content = '[Audio]';
+        messageType = 'AUDIO';
+        try {
+          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          const base64 = buffer.toString('base64');
+          mediaUrl = `data:audio/mp4;base64,${base64}`;
+        } catch (err) {
+          this.logger.error(`Error downloading audio: ${err.message}`);
+        }
+      } else if (msg.message.documentMessage) {
+        content = msg.message.documentMessage.caption || `[Documento: ${msg.message.documentMessage.fileName || 'archivo'}]`;
+        messageType = 'DOCUMENT';
+        try {
+          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          const base64 = buffer.toString('base64');
+          const mimeType = msg.message.documentMessage.mimetype || 'application/octet-stream';
+          mediaUrl = `data:${mimeType};base64,${base64}`;
+        } catch (err) {
+          this.logger.error(`Error downloading document: ${err.message}`);
+        }
+      } else if (msg.message.locationMessage) {
+        const loc = msg.message.locationMessage;
+        content = `[Ubicación: ${loc.degreesLatitude}, ${loc.degreesLongitude}]`;
+        messageType = 'LOCATION';
+      } else if (msg.message.contactMessage) {
+        content = `[Contacto: ${msg.message.contactMessage.displayName || 'Sin nombre'}]`;
+        messageType = 'CONTACT';
+      } else {
+        content = '[Mensaje no soportado]';
+        messageType = 'TEXT';
+      }
 
       // Guardar mensaje
       await this.prisma.message.create({
         data: {
           content,
-          type: MessageType.TEXT,
+          type: messageType,
           direction: MessageDirection.INBOUND,
           status: MessageStatus.DELIVERED,
+          mediaUrl,
           conversationId: conversation.id,
           contactId: contact.id,
           whatsappInstanceId: instanceId,
