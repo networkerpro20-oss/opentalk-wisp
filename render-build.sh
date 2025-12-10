@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e  # Exit on error
 
+# Configurar variables de memoria para Node.js
+export NODE_OPTIONS="--max-old-space-size=460"
+
 # Build script para Render
 echo "🚀 Iniciando build para Render..."
 
@@ -10,15 +13,15 @@ if ! command -v pnpm &> /dev/null; then
     npm install -g pnpm@8.15.0
 fi
 
-# Instalar dependencias del workspace
+# Instalar dependencias del workspace (sin dev dependencies en producción)
 echo "📦 Instalando dependencias del workspace..."
-pnpm install --frozen-lockfile --shamefully-hoist
+pnpm install --frozen-lockfile --prod --shamefully-hoist
 
 # Ir al directorio del backend
 cd apps/backend
 
 echo "📦 Instalando dependencias del backend..."
-pnpm install --shamefully-hoist
+pnpm install --prod --shamefully-hoist
 
 # Generar Prisma Client
 echo "🔧 Generando Prisma Client..."

@@ -250,8 +250,12 @@ export class WhatsappService {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, undefined as any),
         },
-        printQRInTerminal: true,
+        printQRInTerminal: false, // Reducir uso de memoria en logs
         browser: Browsers.ubuntu('OpenTalkWisp'),
+        defaultQueryTimeoutMs: 30000,
+        connectTimeoutMs: 30000,
+        keepAliveIntervalMs: 30000,
+        msgRetryCounterCache: undefined, // Reducir cache
         getMessage: async (key) => {
           return { conversation: '' };
         },
