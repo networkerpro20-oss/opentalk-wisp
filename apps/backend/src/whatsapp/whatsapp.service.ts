@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
@@ -18,6 +18,7 @@ import { CreateWhatsAppInstanceDto } from './dto/create-whatsapp-instance.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { SendMediaDto, MediaType } from './dto/send-media.dto';
 import { WhatsAppStatus, MessageDirection, MessageType, MessageStatus } from '@prisma/client';
+import type { FlowEngineService } from '../flows/flow-engine.service';
 
 interface WAConnection {
   socket: WASocket;
@@ -31,7 +32,11 @@ export class WhatsappService {
   private connections: Map<string, WAConnection> = new Map();
   private readonly authDir = join(process.cwd(), 'wa-auth');
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => 'FlowEngineService'))
+    private flowEngine: FlowEngineService | null = null,
+  ) {
     // Crear directorio de auth si no existe (solo en entornos con filesystem)
     try {
       if (!fs.existsSync(this.authDir)) {
@@ -626,7 +631,7 @@ export class WhatsappService {
       }
 
       // Guardar mensaje
-      await this.prisma.message.create({
+      const savedMessage = await this.prisma.message.create({
         data: {
           content,
           type: messageType,
@@ -648,6 +653,24 @@ export class WhatsappService {
       });
 
       this.logger.log(`Message received from ${phoneNumber}`);
+
+      // Ejecutar flows automáticos (NEW_MESSAGE trigger)
+      if (this.flowEngine) {
+        try {
+          await this.flowEngine.executeTrigger('NEW_MESSAGE', organizationId, {
+            contactId: contact.id,
+            conversationId: conversation.id,
+            messageId: savedMessage.id,
+            variables: {
+              messageText: content,
+              phoneNumber,
+              contactName: contact.name,
+            },
+          });
+        } catch (flowError) {
+          this.logger.error(`Error executing flows: ${flowError.message}`);
+        }
+      }
     } catch (error) {
       this.logger.error(`Error handling incoming message: ${error.message}`);
     }

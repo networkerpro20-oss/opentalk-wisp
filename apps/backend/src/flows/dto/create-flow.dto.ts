@@ -1,0 +1,37 @@
+import { IsString, IsNotEmpty, IsBoolean, IsOptional, IsArray, IsEnum } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+
+export class CreateFlowDto {
+  @ApiProperty({ description: 'Nombre del flow' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({ description: 'Descripción del flow', required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiProperty({ 
+    description: 'Trigger que activa el flow',
+    enum: ['NEW_CONTACT', 'NEW_MESSAGE', 'TAG_ADDED', 'DEAL_STAGE_CHANGE']
+  })
+  @IsEnum(['NEW_CONTACT', 'NEW_MESSAGE', 'TAG_ADDED', 'DEAL_STAGE_CHANGE'])
+  @IsNotEmpty()
+  trigger: string;
+
+  @ApiProperty({ description: 'Si el flow está activo', default: true })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+
+  @ApiProperty({ description: 'Nodos del flow (estructura ReactFlow)', type: 'array' })
+  @IsArray()
+  @IsOptional()
+  nodes?: any[];
+
+  @ApiProperty({ description: 'Conexiones entre nodos', type: 'array' })
+  @IsArray()
+  @IsOptional()
+  edges?: any[];
+}
