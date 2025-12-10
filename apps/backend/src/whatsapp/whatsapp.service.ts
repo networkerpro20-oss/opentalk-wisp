@@ -205,7 +205,7 @@ export class WhatsappService {
           conversationId: conversation.id,
           contactId: contact.id,
           whatsappInstanceId: sendDto.instanceId,
-          whatsappMessageId: sent.key.id,
+          whatsappMessageId: sent?.key?.id || '',
           organizationId,
         },
       });
@@ -248,7 +248,7 @@ export class WhatsappService {
         version,
         auth: {
           creds: state.creds,
-          keys: makeCacheableSignalKeyStore(state.keys, Logger),
+          keys: makeCacheableSignalKeyStore(state.keys, undefined as any),
         },
         printQRInTerminal: true,
         browser: Browsers.ubuntu('OpenTalkWisp'),

@@ -255,7 +255,7 @@ export class DealsService {
       where: { id },
       data: {
         status: DealStatus.WON,
-        wonAt: new Date(),
+        closedDate: new Date(),
       },
     });
   }
@@ -273,7 +273,7 @@ export class DealsService {
       where: { id },
       data: {
         status: DealStatus.LOST,
-        lostAt: new Date(),
+        closedDate: new Date(),
       },
     });
   }
