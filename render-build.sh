@@ -23,21 +23,13 @@ cd apps/backend
 echo "📦 Instalando dependencias del backend..."
 pnpm install --shamefully-hoist
 
-# Generar Prisma Client
+# Generar Prisma Client (usando la versión del proyecto)
 echo "🔧 Generando Prisma Client..."
-npx prisma generate
+pnpm prisma generate
 
-# Build del backend (antes de migraciones para ahorrar memoria)
+# Build del backend
 echo "🏗️  Building backend..."
 pnpm build
 
-# Ejecutar migraciones (después del build)
-echo "🔧 Ejecutando migraciones de base de datos..."
-if [ -z "$DATABASE_URL" ]; then
-    echo "⚠️  WARNING: DATABASE_URL no está configurado, las migraciones se ejecutarán en el start"
-else
-    echo "✅ DATABASE_URL configurado, ejecutando migraciones..."
-    npx prisma migrate deploy || echo "⚠️  Migraciones fallarán, se reintentarán en el start"
-fi
-
 echo "✅ Build completado!"
+echo "ℹ️  Las migraciones se ejecutarán en el Start Command"

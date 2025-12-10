@@ -23,9 +23,9 @@ fi
 
 echo "✅ DATABASE_URL configurada"
 
-# Ejecutar migraciones de Prisma
+# Ejecutar migraciones de Prisma (usando la versión del proyecto, no npx)
 echo "🔧 Ejecutando migraciones de base de datos..."
-npx prisma migrate deploy
+pnpm prisma migrate deploy
 
 echo "✅ Migraciones completadas exitosamente"
 
