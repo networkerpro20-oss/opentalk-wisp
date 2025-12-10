@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { whatsappAPI } from '@/lib/api-extended';
-import Image from 'next/image';
 
 export default function QRCodePage({ params }: { params: { id: string } }) {
   const [countdown, setCountdown] = useState(5);
@@ -76,7 +75,9 @@ export default function QRCodePage({ params }: { params: { id: string } }) {
             {/* QR Code */}
             <div className="flex justify-center bg-gray-50 p-8 rounded-lg">
               <div className="bg-white p-4 rounded-lg shadow">
-                <Image
+                {/* Usar img nativo para Data URLs en lugar de Next Image */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={instance.qrCode}
                   alt="QR Code"
                   width={300}
