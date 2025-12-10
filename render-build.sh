@@ -23,9 +23,9 @@ cd apps/backend
 echo "📦 Instalando dependencias del backend..."
 pnpm install --shamefully-hoist
 
-# Generar Prisma Client (usando la versión del proyecto)
+# Generar Prisma Client (usando el binario directo del proyecto)
 echo "🔧 Generando Prisma Client..."
-pnpm prisma generate
+../../node_modules/.bin/prisma generate
 
 # Build del backend
 echo "🏗️  Building backend..."

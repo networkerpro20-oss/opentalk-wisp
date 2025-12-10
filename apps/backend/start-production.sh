@@ -23,9 +23,9 @@ fi
 
 echo "✅ DATABASE_URL configurada"
 
-# Ejecutar migraciones de Prisma (usando la versión del proyecto, no npx)
+# Ejecutar migraciones de Prisma usando el binario directo
 echo "🔧 Ejecutando migraciones de base de datos..."
-pnpm prisma migrate deploy
+../../node_modules/.bin/prisma migrate deploy
 
 echo "✅ Migraciones completadas exitosamente"
 
