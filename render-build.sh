@@ -33,3 +33,4 @@ pnpm build
 
 echo "✅ Build completado!"
 echo "ℹ️  Las migraciones se ejecutarán en el Start Command"
+echo "🔴 Redis configurado para Bull Queue"

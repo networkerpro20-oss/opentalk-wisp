@@ -14,6 +14,21 @@ services:
         fromDatabase:
           name: opentalk-wisp-db
           property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: opentalk-wisp-redis
+          property: connectionString
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: opentalk-wisp-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: opentalk-wisp-redis
+          property: port
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
@@ -21,6 +36,14 @@ services:
       - key: PORT
         value: 10000
     healthCheckPath: /api/health
+
+  # Redis for Bull Queue
+  - type: redis
+    name: opentalk-wisp-redis
+    plan: starter
+    region: oregon
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
 
 databases:
   - name: opentalk-wisp-db

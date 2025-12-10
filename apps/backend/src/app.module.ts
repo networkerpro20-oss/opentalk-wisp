@@ -18,6 +18,7 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { DealsModule } from './deals/deals.module';
 import { AiModule } from './ai/ai.module';
 import { FlowsModule } from './flows/flows.module';
+import { QueuesModule } from './queues/queues.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { FlowsModule } from './flows/flows.module';
     DealsModule,
     AiModule,
     FlowsModule,
+    QueuesModule,
   ],
 })
 export class AppModule {}

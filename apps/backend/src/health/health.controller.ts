@@ -2,6 +2,8 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService, PrismaHealthIndicator } from '@nestjs/terminus';
 import { PrismaService } from '../prisma/prisma.service';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @ApiTags('Health')
 @Controller('health')
@@ -10,6 +12,7 @@ export class HealthController {
     private health: HealthCheckService,
     private prismaHealth: PrismaHealthIndicator,
     private prisma: PrismaService,
+    @InjectQueue('whatsapp-messages') private whatsappQueue: Queue,
   ) {}
 
   @Get()
@@ -18,9 +21,31 @@ export class HealthController {
   check() {
     return this.health.check([
       () => this.prismaHealth.pingCheck('database', this.prisma),
+      () => this.checkRedis(),
       () => this.checkMemory(),
       () => this.checkDisk(),
     ]);
+  }
+
+  private async checkRedis() {
+    try {
+      // Verificar conexión a Redis mediante Bull Queue
+      const client = await this.whatsappQueue.client;
+      await client.ping();
+      
+      return {
+        redis: {
+          status: 'up',
+        },
+      };
+    } catch (error) {
+      return {
+        redis: {
+          status: 'down',
+          error: error.message,
+        },
+      };
+    }
   }
 
   private async checkMemory() {
