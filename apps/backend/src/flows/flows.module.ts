@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { FlowsService } from './flows.service';
 import { FlowsController } from './flows.controller';
 import { FlowEngineService } from './flow-engine.service';
@@ -7,16 +7,9 @@ import { AiModule } from '../ai/ai.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 
 @Module({
-  imports: [PrismaModule, AiModule, forwardRef(() => WhatsappModule)],
+  imports: [PrismaModule, AiModule, WhatsappModule],
   controllers: [FlowsController],
-  providers: [
-    FlowsService,
-    FlowEngineService,
-    {
-      provide: 'FlowEngineService',
-      useExisting: FlowEngineService,
-    },
-  ],
-  exports: [FlowsService, FlowEngineService, 'FlowEngineService'],
+  providers: [FlowsService, FlowEngineService],
+  exports: [FlowsService, FlowEngineService],
 })
 export class FlowsModule {}
