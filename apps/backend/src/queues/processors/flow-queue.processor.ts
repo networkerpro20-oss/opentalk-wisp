@@ -1,24 +1,23 @@
-import { Process, Processor, OnQueueActive, OnQueueCompleted, OnQueueFailed } from '@nestjs/bull';
+import { Processor, Process } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
-import { FlowEngineService } from '../../flows/flow-engine.service';
-import { FlowsService } from '../../flows/flows.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { FlowsService } from '../../flows/flows.service';
+import { FlowEngineService } from '../../flows/flow-engine.service';
 
-export interface FlowTriggerJob {
-  messageId: number;
-  from: string;
-  content: string;
-  organizationId: number;
+interface FlowTriggerJob {
+  organizationId: string;
+  conversationId: string;
+  messageContent: string;
+  contactId: string;
 }
 
-export interface FlowExecutionJob {
-  flowId: number;
-  conversationId: number;
-  messageId: number;
-  organizationId: number;
-  context: Record<string, any>;
+interface FlowExecutionJob {
+  flowId: string;
+  conversationId: string;
+  organizationId: string;
+  context: any;
 }
 
 @Processor('flow-execution')
@@ -26,59 +25,34 @@ export class FlowQueueProcessor {
   private readonly logger = new Logger(FlowQueueProcessor.name);
 
   constructor(
-    private readonly flowEngineService: FlowEngineService,
-    private readonly flowsService: FlowsService,
+    private flowsService: FlowsService,
+    private flowEngineService: FlowEngineService,
     @InjectQueue('whatsapp-messages') private whatsappQueue: Queue,
-    @InjectQueue('ai-processing') private aiQueue: Queue,
   ) {}
 
   @Process({
     name: 'check-triggers',
     concurrency: 5,
   })
-  async handleTriggerCheck(job: Job<FlowTriggerJob>) {
-    this.logger.log(`Checking flow triggers for message ${job.data.messageId}`);
+  async handleFlowTriggerCheck(job: Job<FlowTriggerJob>) {
+    this.logger.log(`Checking flow triggers for org ${job.data.organizationId}`);
 
     try {
-      const { messageId, from, content, organizationId } = job.data;
+      const { organizationId, messageContent, conversationId, contactId } = job.data;
 
-      // Buscar flows activos para esta organización
-      const activeFlows = await this.flowsService.findActiveFlows(organizationId);
+      // Buscar flows activos
+      const flows = await this.flowsService.findAll(organizationId);
+      const activeFlows = flows.filter(f => f.status === 'ACTIVE');
 
-      await job.updateProgress(30);
+      this.logger.log(`Found ${activeFlows.length} active flows`);
 
-      // Verificar qué flows se deben ejecutar
-      const triggeredFlows = activeFlows.filter((flow) => {
-        return this.shouldTriggerFlow(flow, content);
-      });
-
-      await job.updateProgress(60);
-
-      // Agregar jobs de ejecución para cada flow triggered
-      for (const flow of triggeredFlows) {
-        await this.whatsappQueue.add('execute-flow', {
-          flowId: flow.id,
-          conversationId: job.data.messageId, // Simplificado
-          messageId,
-          organizationId,
-          context: {
-            messageContent: content,
-            from,
-          },
-        }, {
-          priority: 2,
-        });
-      }
-
-      await job.updateProgress(100);
-
+      // Por ahora solo logear
       return {
         success: true,
-        triggeredFlowsCount: triggeredFlows.length,
-        flowIds: triggeredFlows.map(f => f.id),
+        flowsChecked: activeFlows.length,
       };
     } catch (error) {
-      this.logger.error(`Error checking triggers: ${error.message}`);
+      this.logger.error(`Error checking flow triggers: ${error.message}`);
       throw error;
     }
   }
@@ -91,105 +65,28 @@ export class FlowQueueProcessor {
     this.logger.log(`Executing flow ${job.data.flowId}`);
 
     try {
-      const { flowId, conversationId, messageId, organizationId, context } = job.data;
+      const { flowId, conversationId, organizationId, context } = job.data;
 
-      // Obtener flow completo
-      const flow = await this.flowsService.findOne(flowId);
+      // Obtener flow
+      const flow = await this.flowsService.findOne(flowId, organizationId);
       
-      if (!flow || !flow.isActive) {
+      if (!flow || flow.status !== 'ACTIVE') {
         throw new Error(`Flow ${flowId} not found or inactive`);
       }
 
-      await job.updateProgress(20);
+      this.logger.log(`Flow "${flow.name}" ready for execution`);
 
-      // Ejecutar flow usando el FlowEngine
-      const executionResult = await this.flowEngineService.executeFlow(
-        flow,
-        context,
-      );
-
-      await job.updateProgress(80);
-
-      // Procesar acciones resultantes
-      for (const action of executionResult.actions) {
-        await this.processFlowAction(action, conversationId, organizationId);
-      }
-
-      await job.updateProgress(100);
+      // Ejecutar flow
+      await this.flowEngineService.executeFlow(flowId, context);
 
       return {
         success: true,
         flowId,
-        actionsExecuted: executionResult.actions.length,
-        executionTime: executionResult.executionTime,
+        flowName: flow.name,
       };
     } catch (error) {
       this.logger.error(`Error executing flow: ${error.message}`);
       throw error;
-    }
-  }
-
-  @OnQueueActive()
-  onActive(job: Job) {
-    this.logger.debug(`Processing flow job ${job.id} of type ${job.name}`);
-  }
-
-  @OnQueueCompleted()
-  onCompleted(job: Job, result: any) {
-    this.logger.log(`Flow job ${job.id} completed`);
-  }
-
-  @OnQueueFailed()
-  onFailed(job: Job, error: Error) {
-    this.logger.error(`Flow job ${job.id} failed: ${error.message}`);
-  }
-
-  private shouldTriggerFlow(flow: any, messageContent: string): boolean {
-    // Lógica simplificada - verificar trigger
-    if (!flow.trigger) return false;
-
-    switch (flow.trigger.type) {
-      case 'keyword':
-        return messageContent.toLowerCase().includes(flow.trigger.value.toLowerCase());
-      case 'exact_match':
-        return messageContent.toLowerCase() === flow.trigger.value.toLowerCase();
-      case 'regex':
-        const regex = new RegExp(flow.trigger.value, 'i');
-        return regex.test(messageContent);
-      default:
-        return false;
-    }
-  }
-
-  private async processFlowAction(action: any, conversationId: number, organizationId: number) {
-    switch (action.type) {
-      case 'send_message':
-        await this.whatsappQueue.add('send-outgoing', {
-          to: action.to,
-          message: action.message,
-          organizationId,
-        }, {
-          priority: 3,
-        });
-        break;
-
-      case 'ai_response':
-        await this.aiQueue.add('generate-response', {
-          conversationId,
-          prompt: action.prompt,
-          organizationId,
-        }, {
-          priority: 4,
-        });
-        break;
-
-      case 'add_tag':
-        // Lógica para agregar tags
-        this.logger.log(`Adding tag: ${action.tag}`);
-        break;
-
-      default:
-        this.logger.warn(`Unknown action type: ${action.type}`);
     }
   }
 }

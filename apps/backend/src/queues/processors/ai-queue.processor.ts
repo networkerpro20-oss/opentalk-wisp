@@ -1,22 +1,34 @@
-import { Process, Processor, OnQueueActive, OnQueueCompleted, OnQueueFailed } from '@nestjs/bull';
+import { Processor, Process } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
-import { AiService } from '../../ai/ai.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { AiService } from '../../ai/ai.service';
 
-export interface AiResponseJob {
-  conversationId: number;
+interface AiResponseJob {
+  conversationId: string;
   prompt: string;
   messageContent: string;
-  organizationId: number;
-  useCase?: 'sentiment' | 'lead_scoring' | 'auto_response' | 'extract_info';
+  organizationId: string;
+  contactPhone?: string;
 }
 
-export interface SentimentAnalysisJob {
-  messageId: number;
+interface SentimentAnalysisJob {
+  messageId: string;
   content: string;
-  organizationId: number;
+  organizationId: string;
+}
+
+interface LeadScoringJob {
+  contactId: string;
+  organizationId: string;
+}
+
+interface InfoExtractionJob {
+  messageId: string;
+  content: string;
+  fieldsToExtract: string[];
+  organizationId: string;
 }
 
 @Processor('ai-processing')
@@ -24,46 +36,34 @@ export class AiQueueProcessor {
   private readonly logger = new Logger(AiQueueProcessor.name);
 
   constructor(
-    private readonly aiService: AiService,
+    private aiService: AiService,
     @InjectQueue('whatsapp-messages') private whatsappQueue: Queue,
   ) {}
 
   @Process({
     name: 'generate-response',
-    concurrency: 2, // Limitar llamadas a OpenAI
+    concurrency: 2,
   })
   async handleAiResponse(job: Job<AiResponseJob>) {
     this.logger.log(`Generating AI response for conversation ${job.data.conversationId}`);
 
     try {
-      const { conversationId, prompt, messageContent, organizationId } = job.data;
-
-      await job.updateProgress(20);
+      const { conversationId, messageContent } = job.data;
 
       // Generar respuesta con IA
-      const aiResponse = await this.aiService.generateResponse({
-        prompt,
-        context: messageContent,
-        organizationId,
-      });
+      const aiResponse = await this.aiService.generateAutoResponse(
+        conversationId,
+        messageContent,
+      );
 
-      await job.updateProgress(70);
-
-      // Agregar a cola de WhatsApp para enviar
-      await this.whatsappQueue.add('send-outgoing', {
-        to: job.data.conversationId, // Simplificado
-        message: aiResponse.text,
-        organizationId,
-      }, {
-        priority: 2,
-      });
-
-      await job.updateProgress(100);
+      this.logger.log(`AI Response generated: ${aiResponse.response.substring(0, 100)}...`);
 
       return {
         success: true,
-        response: aiResponse.text,
-        tokensUsed: aiResponse.tokensUsed,
+        conversationId,
+        response: aiResponse.response,
+        confidence: aiResponse.confidence,
+        needsHumanReview: aiResponse.needsHumanReview,
       };
     } catch (error) {
       this.logger.error(`Error generating AI response: ${error.message}`);
@@ -79,28 +79,18 @@ export class AiQueueProcessor {
     this.logger.log(`Analyzing sentiment for message ${job.data.messageId}`);
 
     try {
-      const { messageId, content, organizationId } = job.data;
+      const { messageId, content } = job.data;
 
-      await job.updateProgress(30);
+      const sentiment = await this.aiService.analyzeSentiment(content);
 
-      // Analizar sentimiento
-      const sentiment = await this.aiService.analyzeSentiment({
-        text: content,
-        organizationId,
-      });
-
-      await job.updateProgress(80);
-
-      // Aquí podrías guardar el sentimiento en la BD
-      this.logger.log(`Sentiment for message ${messageId}: ${sentiment.label} (${sentiment.score})`);
-
-      await job.updateProgress(100);
+      this.logger.log(`Sentiment: ${sentiment.sentiment} (score: ${sentiment.score})`);
 
       return {
         success: true,
         messageId,
-        sentiment: sentiment.label,
+        sentiment: sentiment.sentiment,
         score: sentiment.score,
+        confidence: sentiment.confidence,
       };
     } catch (error) {
       this.logger.error(`Error analyzing sentiment: ${error.message}`);
@@ -112,37 +102,24 @@ export class AiQueueProcessor {
     name: 'lead-scoring',
     concurrency: 3,
   })
-  async handleLeadScoring(job: Job) {
-    this.logger.log(`Scoring lead for contact ${job.data.contactId}`);
+  async handleLeadScoring(job: Job<LeadScoringJob>) {
+    this.logger.log(`Calculating lead score for contact ${job.data.contactId}`);
 
     try {
-      const { contactId, messageHistory, organizationId } = job.data;
+      const { contactId } = job.data;
 
-      await job.updateProgress(30);
+      const leadScore = await this.aiService.calculateLeadScore(contactId);
 
-      // Calcular lead score usando IA
-      const leadScore = await this.aiService.scoreLeadQuality({
-        contactId,
-        messageHistory,
-        organizationId,
-      });
-
-      await job.updateProgress(80);
-
-      // Actualizar lead score en la BD
-      this.logger.log(`Lead score for contact ${contactId}: ${leadScore.score}/100`);
-
-      await job.updateProgress(100);
+      this.logger.log(`Lead score: ${leadScore.score}/100 (${leadScore.category})`);
 
       return {
         success: true,
         contactId,
         score: leadScore.score,
         category: leadScore.category,
-        insights: leadScore.insights,
       };
     } catch (error) {
-      this.logger.error(`Error scoring lead: ${error.message}`);
+      this.logger.error(`Error calculating lead score: ${error.message}`);
       throw error;
     }
   }
@@ -151,50 +128,22 @@ export class AiQueueProcessor {
     name: 'extract-info',
     concurrency: 4,
   })
-  async handleInfoExtraction(job: Job) {
-    this.logger.log(`Extracting info from message ${job.data.messageId}`);
+  async handleInfoExtraction(job: Job<InfoExtractionJob>) {
+    this.logger.log(`Info extraction for message ${job.data.messageId}`);
 
     try {
-      const { messageId, content, fieldsToExtract, organizationId } = job.data;
+      const { messageId, fieldsToExtract } = job.data;
 
-      await job.updateProgress(30);
-
-      // Extraer información usando IA
-      const extractedInfo = await this.aiService.extractInformation({
-        text: content,
-        fields: fieldsToExtract,
-        organizationId,
-      });
-
-      await job.updateProgress(80);
-
-      this.logger.log(`Extracted info from message ${messageId}: ${JSON.stringify(extractedInfo)}`);
-
-      await job.updateProgress(100);
-
+      this.logger.log(`Requested fields: ${fieldsToExtract.join(', ')}`);
+      
       return {
         success: true,
         messageId,
-        extractedInfo,
+        note: 'Info extraction feature coming soon',
       };
     } catch (error) {
-      this.logger.error(`Error extracting info: ${error.message}`);
+      this.logger.error(`Error extracting information: ${error.message}`);
       throw error;
     }
-  }
-
-  @OnQueueActive()
-  onActive(job: Job) {
-    this.logger.debug(`Processing AI job ${job.id} of type ${job.name}`);
-  }
-
-  @OnQueueCompleted()
-  onCompleted(job: Job, result: any) {
-    this.logger.log(`AI job ${job.id} completed`);
-  }
-
-  @OnQueueFailed()
-  onFailed(job: Job, error: Error) {
-    this.logger.error(`AI job ${job.id} failed: ${error.message}`);
   }
 }
