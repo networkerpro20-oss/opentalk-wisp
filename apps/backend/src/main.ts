@@ -12,7 +12,7 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
-  const port = configService.get('PORT', 3000);
+  const port = configService.get('PORT') || process.env.PORT || 10000;
   const apiPrefix = configService.get('API_PREFIX', '/api');
 
   // Security
@@ -20,8 +20,9 @@ async function bootstrap() {
   app.use(compression());
 
   // CORS
+  const frontendUrl = configService.get('FRONTEND_URL') || process.env.FRONTEND_URL || 'http://localhost:3001';
   app.enableCors({
-    origin: configService.get('CORS_ORIGIN', 'http://localhost:3001').split(','),
+    origin: [frontendUrl, 'http://localhost:3001', 'http://localhost:3000'],
     credentials: true,
   });
 
@@ -66,13 +67,16 @@ async function bootstrap() {
     });
   }
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   console.log(`
 🚀 OpenTalkWisp Backend is running!
-📍 URL: http://localhost:${port}${apiPrefix}
-📚 Docs: http://localhost:${port}${apiPrefix}/docs
-🏥 Health: http://localhost:${port}${apiPrefix}/health
+📍 Environment: ${process.env.NODE_ENV || 'development'}
+📍 Port: ${port}
+📍 API: ${apiPrefix}
+📍 Frontend URL: ${frontendUrl}
+🏥 Health: ${apiPrefix}/health
+📖 Docs: ${apiPrefix}/docs
   `);
 }
 
