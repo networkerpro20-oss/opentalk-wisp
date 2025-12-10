@@ -224,7 +224,9 @@ Health Check:     /api/health
 
 ## ✅ COMMIT ACTUAL
 
-Commit: `3714896` - Script de inicio robusto con validaciones
+Commit: **`bca0df8`** - FIX CRÍTICO: Usar pnpm prisma en lugar de npx
+
+**IMPORTANTE**: El problema anterior era que Render descargaba Prisma 7.1.0 con `npx prisma`, pero el proyecto usa Prisma 5.8.0. Ahora usa `pnpm prisma` que respeta la versión del package.json.
 
 **Este es el commit correcto. Usa este.**
 
