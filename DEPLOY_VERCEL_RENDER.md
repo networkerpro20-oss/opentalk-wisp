@@ -118,7 +118,7 @@ Install Command: pnpm install
 En "Environment Variables", agregar:
 
 ```env
-NEXT_PUBLIC_API_URL=https://opentalk-backend.onrender.com
+NEXT_PUBLIC_API_URL=https://opentalk-wisp.onrender.com
 ```
 
 ### 2.5 Deploy
@@ -198,10 +198,10 @@ Render redesplegará automáticamente.
 
 ```bash
 # Health check
-curl https://opentalk-backend.onrender.com/health
+curl https://opentalk-wisp.onrender.com/api/health
 
 # Debe responder:
-# {"status":"ok","database":"connected"}
+# {"status":"ok","info":{"database":{"status":"up"}}}
 ```
 
 ### 5.2 Probar Frontend
@@ -354,7 +354,7 @@ pnpm prisma migrate deploy
 
 1. Ve a https://uptimerobot.com
 2. Agregar monitor para backend:
-   - URL: `https://opentalk-backend.onrender.com/health`
+   - URL: `https://opentalk-wisp.onrender.com/api/health`
    - Interval: 5 minutos
 3. Configurar alertas por email
 
