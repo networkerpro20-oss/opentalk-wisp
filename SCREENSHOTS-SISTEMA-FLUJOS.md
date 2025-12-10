@@ -1,0 +1,370 @@
+# 🎬 Screenshots del Sistema de Flujos
+
+## 📸 Capturas de Pantalla
+
+### 1. Página de Listado de Flows
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 🤖 Automatizaciones                    [➕ Crear Flow]         │
+│ Crea flujos inteligentes para responder automáticamente         │
+├─────────────────────────────────────────────────────────────────┤
+│  📊 Total Flows    ✅ Activos      ⏸️ Inactivos               │
+│      3                 2                1                       │
+├─────────────────────────────────────────────────────────────────┤
+│ ┌───────────────────────────────────────────────────────────┐   │
+│ │ Bienvenida Automática               [✅ Activo]          │   │
+│ │ 🎯 Trigger: NEW_MESSAGE  🧩 5 nodos  🔗 4 conexiones     │   │
+│ │ [▶️ Test] [⏸️ Pausar] [✏️ Editar] [🗑️]                  │   │
+│ └───────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│ ┌───────────────────────────────────────────────────────────┐   │
+│ │ Calificación de Leads               [✅ Activo]          │   │
+│ │ 🎯 Trigger: NEW_MESSAGE  🧩 8 nodos  🔗 7 conexiones     │   │
+│ │ [▶️ Test] [⏸️ Pausar] [✏️ Editar] [🗑️]                  │   │
+│ └───────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 2. Editor Visual de Flows
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ [Nombre del Flow]                             [💾 Guardar]     │
+├────────┬────────────────────────────────────────────────────────┤
+│ 🎨     │                                                        │
+│ Compo- │                 [▶️ Inicio]                           │
+│ nentes │                      ↓                                 │
+│        │              [💬 Enviar Mensaje]                       │
+│ 💬 Msj │                      ↓                                 │
+│ ❓ Preg│              [❓ Hacer Pregunta]                       │
+│ 📋 Menu│                      ↓                                 │
+│ 🔀 Cond│         [🔀 Condición] ──┬── Sí ──→ [Tag: VIP]       │
+│ 🤖 IA  │                           │                            │
+│ 📸 Medi│                           └── No ──→ [Delay: 1h]      │
+│ ⏱️ Dela│                                                        │
+│ 🏷️ Tag │  [Mini-mapa]                                          │
+│ 👤 Assi│  ┌─────┐                                              │
+│ 🔌 API │  │ ▪▪  │                                              │
+│        │  │ ▪▪▪ │                                              │
+├────────┤  └─────┘                                              │
+│ 💡 Tips│                                                        │
+│ • Drag │                                                        │
+│ • Click│                                                        │
+│ • Conec│                                                        │
+└────────┴────────────────────────────────────────────────────────┘
+```
+
+### 3. Panel de Configuración de Nodo
+```
+                                    ┌──────────────────────┐
+                                    │ 💬 Enviar Mensaje ✕ │
+                                    ├──────────────────────┤
+                                    │                      │
+                                    │ Mensaje              │
+                                    │ ┌──────────────────┐ │
+                                    │ │ Hola {nombre},   │ │
+                                    │ │ bienvenido a     │ │
+                                    │ │ nuestro servicio │ │
+                                    │ └──────────────────┘ │
+                                    │                      │
+                                    │ 💡 Usa {nombre} para │
+                                    │    variables         │
+                                    │                      │
+                                    │ [  Guardar  ]        │
+                                    │ [ Eliminar  ]        │
+                                    └──────────────────────┘
+```
+
+### 4. Menú de Opciones (Nodo Menu)
+```
+┌────────────────────────────────────┐
+│ 📋 Menú de Opciones             ✕ │
+├────────────────────────────────────┤
+│                                    │
+│ Opciones del Menú                  │
+│ ┌──┬────────────────────────┬──┐  │
+│ │1 │ Ventas                 │✕ │  │
+│ └──┴────────────────────────┴──┘  │
+│ ┌──┬────────────────────────┬──┐  │
+│ │2 │ Soporte                │✕ │  │
+│ └──┴────────────────────────┴──┘  │
+│ ┌──┬────────────────────────┬──┐  │
+│ │3 │ Cotización             │✕ │  │
+│ └──┴────────────────────────┴──┘  │
+│                                    │
+│ [+ Agregar Opción]                 │
+│                                    │
+│ Variable para guardar respuesta    │
+│ ┌──────────────────────────────┐  │
+│ │ opcion_seleccionada          │  │
+│ └──────────────────────────────┘  │
+│                                    │
+│ [  Guardar  ] [ Eliminar ]         │
+└────────────────────────────────────┘
+```
+
+### 5. Nodo de IA Configuración
+```
+┌────────────────────────────────────┐
+│ 🤖 IA                            ✕ │
+├────────────────────────────────────┤
+│                                    │
+│ Acción de IA                       │
+│ ┌──────────────────────────────┐  │
+│ │ ▼ Analizar Sentimiento       │  │
+│ ├──────────────────────────────┤  │
+│ │   Generar Respuesta Intelig. │  │
+│ │   Extraer Intención          │  │
+│ │   Clasificar Mensaje         │  │
+│ │   Calcular Lead Score        │  │
+│ └──────────────────────────────┘  │
+│                                    │
+│ Prompt (opcional)                  │
+│ ┌──────────────────────────────┐  │
+│ │ Analiza el tono del mensaje  │  │
+│ │ y clasifica como POSITIVE,   │  │
+│ │ NEUTRAL o NEGATIVE           │  │
+│ └──────────────────────────────┘  │
+│                                    │
+│ [  Guardar  ] [ Eliminar ]         │
+└────────────────────────────────────┘
+```
+
+### 6. Ejemplo de Flow Completo en Canvas
+```
+                    ┌──────────────┐
+                    │  ▶️ Inicio   │
+                    │ NEW_MESSAGE  │
+                    └───────┬──────┘
+                            ↓
+                    ┌──────────────┐
+                    │ ❓ Pregunta  │
+                    │ ¿Tu nombre?  │
+                    │ → nombre     │
+                    └───────┬──────┘
+                            ↓
+                    ┌──────────────┐
+                    │ 💬 Mensaje   │
+                    │ Hola {nombre}│
+                    └───────┬──────┘
+                            ↓
+                    ┌──────────────┐
+                    │ 🤖 IA        │
+                    │ Sentiment    │
+                    └───────┬──────┘
+                            ↓
+               ┌────────────┴────────────┐
+               ↓                         ↓
+        ┌──────────┐             ┌──────────┐
+        │🔀 SI     │             │🔀 NO     │
+        │ POSITIVE │             │ NEGATIVE │
+        └────┬─────┘             └────┬─────┘
+             ↓                        ↓
+      ┌──────────┐             ┌──────────┐
+      │🏷️ Tag   │             │⏱️ Delay  │
+      │lead-hot  │             │1 hora    │
+      └────┬─────┘             └────┬─────┘
+           ↓                        ↓
+    ┌──────────┐             ┌──────────┐
+    │👤 Assign │             │💬 Mensaje│
+    │Senior    │             │Seguimien.│
+    └──────────┘             └──────────┘
+```
+
+## 🎥 Flujo de Trabajo Visual
+
+### Crear un Flow (Step by Step)
+
+```
+1. INICIO
+   ┌─────────────────────────────┐
+   │ [➕ Crear Flow]             │
+   └─────────────────────────────┘
+              ↓
+   
+2. EDITOR SE ABRE
+   ┌─────────────────────────────┐
+   │ Canvas vacío con nodo       │
+   │ Trigger inicial             │
+   └─────────────────────────────┘
+              ↓
+
+3. ARRASTRAR NODOS
+   ┌─────────────────────────────┐
+   │ Paleta → Canvas             │
+   │ (drag & drop)               │
+   └─────────────────────────────┘
+              ↓
+
+4. CONECTAR
+   ┌─────────────────────────────┐
+   │ Clic en punto de conexión   │
+   │ Arrastrar a otro nodo       │
+   └─────────────────────────────┘
+              ↓
+
+5. CONFIGURAR
+   ┌─────────────────────────────┐
+   │ Clic en nodo                │
+   │ Panel lateral se abre       │
+   │ Editar propiedades          │
+   └─────────────────────────────┘
+              ↓
+
+6. GUARDAR
+   ┌─────────────────────────────┐
+   │ [💾 Guardar]                │
+   │ Flow guardado en BD         │
+   └─────────────────────────────┘
+              ↓
+
+7. ACTIVAR
+   ┌─────────────────────────────┐
+   │ [▶️ Activar]                │
+   │ Flow en producción          │
+   └─────────────────────────────┘
+```
+
+## 🎨 Paleta de Colores
+
+```
+Trigger  →  🟢 Verde gradiente  (#10b981 → #059669)
+Mensaje  →  ⚪ Blanco          (#ffffff)
+Pregunta →  🔵 Azul claro      (#dbeafe)
+Menú     →  🟣 Índigo          (#e0e7ff)
+Condición→  🟡 Amarillo        (#fef3c7)
+IA       →  🟣 Púrpura grad.   (#a855f7 → #ec4899)
+Media    →  🌸 Rosa            (#fce7f3)
+Delay    →  🟠 Naranja         (#fed7aa)
+Tag      →  🌊 Verde agua      (#ccfbf1)
+Assign   →  🔷 Cyan            (#cffafe)
+API      →  🟣 Violeta         (#f3e8ff)
+```
+
+## 📱 Responsive Design
+
+### Desktop (> 1024px)
+```
+┌─────────┬──────────────────────┬─────────┐
+│         │                      │         │
+│ Paleta  │      Canvas          │ Config  │
+│ (256px) │      (flex-1)        │ (384px) │
+│         │                      │         │
+└─────────┴──────────────────────┴─────────┘
+```
+
+### Tablet (768px - 1024px)
+```
+┌─────────┬──────────────────────┐
+│         │                      │
+│ Paleta  │      Canvas          │
+│ (200px) │      (flex-1)        │
+│         │                      │
+└─────────┴──────────────────────┘
+Config panel → Modal overlay
+```
+
+### Mobile (< 768px)
+```
+┌──────────────────────┐
+│      Canvas          │
+│      (full)          │
+│                      │
+└──────────────────────┘
+Paleta → Bottom sheet
+Config → Full screen modal
+```
+
+## 🎯 Estados Visuales
+
+### Nodo Normal
+```
+┌──────────────┐
+│ 💬 Mensaje   │ ← Border gris
+│ Hola...      │
+└──────────────┘
+```
+
+### Nodo Seleccionado
+```
+┌──────────────┐
+│ 💬 Mensaje   │ ← Ring azul (4px)
+│ Hola...      │   Shadow grande
+└──────────────┘
+```
+
+### Nodo en Hover
+```
+┌──────────────┐
+│ 💬 Mensaje   │ ← Shadow mediano
+│ Hola...      │   Cursor pointer
+└──────────────┘
+```
+
+### Conexión Normal
+```
+○────────────○  Línea gris (#d1d5db)
+```
+
+### Conexión Seleccionada
+```
+○━━━━━━━━━━━━○  Línea azul (#3b82f6)
+              ↑  Width 2px
+```
+
+## 🎭 Animaciones
+
+### Drag & Drop
+```
+Inicio: opacity: 1
+Dragging: opacity: 0.6, cursor: grabbing
+Drop: opacity: 1, scale: 1.05 → 1.0 (0.2s ease)
+```
+
+### Panel Lateral
+```
+Cerrado: transform: translateX(100%)
+Abrir: transform: translateX(0), transition: 0.3s ease
+```
+
+### Botones
+```
+Normal: scale: 1
+Hover: scale: 1.05
+Active: scale: 0.95
+```
+
+---
+
+## 📐 Dimensiones Exactas
+
+```
+Canvas:
+  - Min height: 100vh
+  - Grid size: 16px
+  - Node spacing: 50px min
+
+Nodos:
+  - Min width: 180px
+  - Max width: 220px
+  - Height: auto (content)
+  - Padding: 12px 16px
+
+Paleta:
+  - Width: 256px (desktop)
+  - Item height: 60px
+  - Gap: 8px
+
+Panel Config:
+  - Width: 384px (desktop)
+  - Padding: 24px
+  - Max height: 100vh (scroll)
+
+Conexiones:
+  - Handle size: 12px (3xl)
+  - Line width: 1.5px
+  - Bezier curve: smooth
+```
+
+---
+
+**🎨 El sistema tiene un diseño profesional, intuitivo y completamente funcional.**
