@@ -1,0 +1,584 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MULTI-TENANCY & USERS
+// ============================================
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  domain    String?  @unique // Para custom domains
+  logo      String?
+  plan      Plan     @default(FREE)
+  status    OrgStatus @default(ACTIVE)
+  
+  // Configuración
+  settings  Json?    // JSONB para configuración flexible
+  
+  // Límites según plan
+  maxUsers      Int @default(1)
+  maxContacts   Int @default(100)
+  maxWhatsApps  Int @default(1)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  users         User[]
+  contacts      Contact[]
+  conversations Conversation[]
+  messages      Message[]
+  deals         Deal[]
+  pipelines     Pipeline[]
+  tags          Tag[]
+  templates     Template[]
+  campaigns     Campaign[]
+  flows         Flow[]
+  whatsappInstances WhatsAppInstance[]
+  
+  @@index([slug])
+  @@index([domain])
+  @@map("organizations")
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  CANCELLED
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  password       String
+  firstName      String
+  lastName       String
+  avatar         String?
+  role           UserRole @default(AGENT)
+  status         UserStatus @default(ACTIVE)
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  lastLoginAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relaciones
+  assignedConversations Conversation[]
+  assignedDeals         Deal[]
+  sentMessages          Message[]
+  activities            Activity[]
+  
+  @@index([organizationId])
+  @@index([email])
+  @@map("users")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  AGENT
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+}
+
+// ============================================
+// CONTACTS & CRM
+// ============================================
+
+model Contact {
+  id        String   @id @default(uuid())
+  
+  // Información básica
+  name      String
+  email     String?
+  phone     String?
+  avatar    String?
+  
+  // Información adicional
+  company   String?
+  position  String?
+  notes     String?
+  
+  // Custom fields
+  customFields Json?
+  
+  // Scoring IA
+  score     Int @default(0) // 0-100
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  conversations Conversation[]
+  deals         Deal[]
+  tags          ContactTag[]
+  activities    Activity[]
+  
+  @@index([organizationId])
+  @@index([phone])
+  @@index([email])
+  @@map("contacts")
+}
+
+// ============================================
+// WHATSAPP & MESSAGES
+// ============================================
+
+model WhatsAppInstance {
+  id        String   @id @default(uuid())
+  
+  // Configuración
+  name      String
+  phone     String?
+  status    WhatsAppStatus @default(DISCONNECTED)
+  qrCode    String?
+  
+  // Session data (Baileys)
+  sessionData Json?
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  connectedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
+  conversations Conversation[]
+  messages      Message[]
+  
+  @@index([organizationId])
+  @@map("whatsapp_instances")
+}
+
+enum WhatsAppStatus {
+  CONNECTED
+  DISCONNECTED
+  QR_CODE
+  ERROR
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  
+  // Estado
+  status    ConversationStatus @default(OPEN)
+  channel   Channel @default(WHATSAPP)
+  
+  // Asignación
+  assignedToId String?
+  assignedTo   User? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  
+  // WhatsApp
+  whatsappInstanceId String?
+  whatsappInstance   WhatsAppInstance? @relation(fields: [whatsappInstanceId], references: [id], onDelete: SetNull)
+  
+  // Contact
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  // Análisis IA
+  sentiment String? // positive, negative, neutral
+  summary   String?
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  lastMessageAt DateTime @default(now())
+  closedAt      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relaciones
+  messages Message[]
+  
+  @@index([organizationId])
+  @@index([contactId])
+  @@index([assignedToId])
+  @@index([status])
+  @@map("conversations")
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum Channel {
+  WHATSAPP
+  EMAIL
+  WEBCHAT
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  
+  // Contenido
+  content   String
+  type      MessageType @default(TEXT)
+  mediaUrl  String?
+  
+  // Dirección
+  direction MessageDirection
+  
+  // Estado
+  status    MessageStatus @default(SENT)
+  
+  // Relaciones principales
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  contactId String
+  
+  whatsappInstanceId String?
+  whatsappInstance   WhatsAppInstance? @relation(fields: [whatsappInstanceId], references: [id], onDelete: SetNull)
+  
+  sentById  String?
+  sentBy    User? @relation(fields: [sentById], references: [id], onDelete: SetNull)
+  
+  // WhatsApp specific
+  whatsappMessageId String?
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  sentAt    DateTime @default(now())
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([whatsappMessageId])
+  @@map("messages")
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  LOCATION
+  CONTACT
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+// ============================================
+// CRM - DEALS & PIPELINES
+// ============================================
+
+model Pipeline {
+  id        String   @id @default(uuid())
+  
+  name      String
+  order     Int @default(0)
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  stages    Stage[]
+  deals     Deal[]
+  
+  @@index([organizationId])
+  @@map("pipelines")
+}
+
+model Stage {
+  id        String   @id @default(uuid())
+  
+  name      String
+  order     Int
+  color     String?
+  
+  // Pipeline
+  pipelineId String
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  deals     Deal[]
+  
+  @@index([pipelineId])
+  @@map("stages")
+}
+
+model Deal {
+  id        String   @id @default(uuid())
+  
+  // Información básica
+  title     String
+  value     Decimal @db.Decimal(10, 2)
+  currency  String @default("USD")
+  
+  // Estado
+  status    DealStatus @default(OPEN)
+  probability Int @default(50) // 0-100
+  
+  // Fechas importantes
+  expectedCloseDate DateTime?
+  closedDate        DateTime?
+  
+  // Relaciones
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  stageId   String
+  stage     Stage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  
+  pipelineId String
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  
+  assignedToId String?
+  assignedTo   User? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  activities Activity[]
+  
+  @@index([organizationId])
+  @@index([contactId])
+  @@index([stageId])
+  @@index([status])
+  @@map("deals")
+}
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+}
+
+// ============================================
+// TAGS & ACTIVITIES
+// ============================================
+
+model Tag {
+  id        String   @id @default(uuid())
+  
+  name      String
+  color     String
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  
+  // Relaciones
+  contacts  ContactTag[]
+  
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("tags")
+}
+
+model ContactTag {
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  tagId     String
+  tag       Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@id([contactId, tagId])
+  @@map("contact_tags")
+}
+
+model Activity {
+  id        String   @id @default(uuid())
+  
+  type      ActivityType
+  title     String
+  description String?
+  
+  // Relaciones
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  dealId    String?
+  deal      Deal? @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  
+  @@index([contactId])
+  @@index([dealId])
+  @@index([userId])
+  @@map("activities")
+}
+
+enum ActivityType {
+  NOTE
+  CALL
+  EMAIL
+  MEETING
+  TASK
+}
+
+// ============================================
+// AUTOMATION - CAMPAIGNS & FLOWS
+// ============================================
+
+model Template {
+  id        String   @id @default(uuid())
+  
+  name      String
+  content   String
+  type      TemplateType @default(TEXT)
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@map("templates")
+}
+
+enum TemplateType {
+  TEXT
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+model Campaign {
+  id        String   @id @default(uuid())
+  
+  name      String
+  status    CampaignStatus @default(DRAFT)
+  
+  // Programación
+  scheduledAt DateTime?
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@map("campaigns")
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  PAUSED
+}
+
+model Flow {
+  id        String   @id @default(uuid())
+  
+  name      String
+  trigger   FlowTrigger
+  status    FlowStatus @default(INACTIVE)
+  
+  // Configuración del flujo (JSON)
+  config    Json?
+  
+  // Multi-tenancy
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@map("flows")
+}
+
+enum FlowTrigger {
+  NEW_CONTACT
+  NEW_MESSAGE
+  TAG_ADDED
+  DEAL_STAGE_CHANGE
+}
+
+enum FlowStatus {
+  ACTIVE
+  INACTIVE
+}

@@ -1,0 +1,33 @@
+{
+  "name": "opentalkwisp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CRM Omnicanal SaaS Multi-Empresa con IA para WhatsApp",
+  "author": "OpenTalkWisp Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=8.15.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "test": "turbo run test",
+    "test:cov": "turbo run test:cov",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@turbo/gen": "^1.11.3",
+    "prettier": "^3.1.1",
+    "turbo": "^1.11.3",
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
