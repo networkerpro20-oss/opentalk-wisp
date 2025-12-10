@@ -45,10 +45,10 @@ Root Directory: (dejar vacío)
 Runtime: Node
 
 Build Command: 
-./render-build.sh
+bash render-build.sh
 
 Start Command: 
-cd apps/backend && node dist/main.js
+bash apps/backend/start-production.sh
 
 Plan: Starter ($7/mes) - Recomendado para producción
 ```

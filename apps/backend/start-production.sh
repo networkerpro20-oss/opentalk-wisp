@@ -23,9 +23,10 @@ fi
 
 echo "✅ DATABASE_URL configurada"
 
-# Ejecutar migraciones de Prisma usando el binario directo
+# Ejecutar migraciones de Prisma
 echo "🔧 Ejecutando migraciones de base de datos..."
-../../node_modules/.bin/prisma migrate deploy
+cd /opt/render/project/src/apps/backend
+npx prisma migrate deploy
 
 echo "✅ Migraciones completadas exitosamente"
 
@@ -39,4 +40,5 @@ echo "✅ Build encontrado"
 
 # Iniciar el servidor
 echo "🚀 Iniciando servidor NestJS en puerto ${PORT:-10000}..."
+cd /opt/render/project/src/apps/backend
 exec node dist/main.js
