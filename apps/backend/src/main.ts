@@ -20,11 +20,12 @@ async function bootstrap() {
   app.use(compression());
 
   // CORS - Configuración robusta que lee múltiples variables
+  // Forzar lectura directa de process.env primero
   const frontendUrl = 
-    configService.get('FRONTEND_URL') || 
     process.env.FRONTEND_URL || 
-    configService.get('CORS_ORIGIN') ||
     process.env.CORS_ORIGIN ||
+    configService.get('FRONTEND_URL') || 
+    configService.get('CORS_ORIGIN') ||
     'http://localhost:3001';
     
   const allowedOrigins = [
