@@ -41,11 +41,19 @@ Esta es una excelente combinación:
 Name: opentalk-backend
 Region: Oregon (mismo que DB)
 Branch: main
-Root Directory: apps/backend
+Root Directory: (dejar vacío)
 Runtime: Node
-Build Command: pnpm install && pnpm prisma generate && pnpm build
-Start Command: pnpm prisma migrate deploy && node dist/main.js
+
+Build Command: 
+./render-build.sh
+
+Start Command: 
+cd apps/backend && node dist/main.js
+
+Plan: Starter ($7/mes) - Recomendado para producción
 ```
+
+**IMPORTANTE**: No uses el plan Free para producción, se duerme cada 15 minutos.
 
 ### 1.4 Configurar Variables de Entorno
 
@@ -60,7 +68,7 @@ JWT_SECRET=tu-secret-super-seguro-32-caracteres-minimo
 
 # Node
 NODE_ENV=production
-PORT=3001
+PORT=10000
 
 # Frontend URL (lo configuraremos después)
 FRONTEND_URL=https://tu-app.vercel.app
