@@ -59,45 +59,69 @@
 
 ---
 
-### Opción 2: Vercel + Supabase (Frontend optimizado) ⚡
+### Opción 2: Vercel + Render (Recomendado por precio) ⚡
 
 **¿Por qué esta opción?**
 - ✅ Vercel es el mejor para Next.js (gratuito)
-- ✅ Supabase tiene PostgreSQL gratis
+- ✅ Render tiene plan gratuito para testing
 - ✅ Deploy automático en cada push
-- ✅ CDN global incluido
+- ✅ SSL incluido en ambos
+- ✅ $7-14/mes en producción
 
-#### Pasos:
+#### Guía Completa:
 
-1. **Deploy Backend en Railway o Render**
-   - Sigue pasos de Railway arriba solo para backend
-   - O usa Render.com (similar a Railway)
+👉 **Ver: `DEPLOY_VERCEL_RENDER.md` para instrucciones paso a paso**
 
-2. **Base de datos en Supabase**
+**Resumen rápido:**
+
+1. **Backend en Render**
    ```
-   https://supabase.com
+   https://render.com
+   - New + → Web Service
+   - Repo: networkerpro20-oss/opentalk-wisp
+   - Root: apps/backend
+   - Build: pnpm install && pnpm prisma generate && pnpm build
+   - Start: pnpm prisma migrate deploy && node dist/main.js
    ```
-   - Crear proyecto
-   - Copiar connection string de PostgreSQL
-   - Usar esa URL en el backend
 
-3. **Deploy Frontend en Vercel**
+2. **PostgreSQL en Render**
+   ```
+   - New + → PostgreSQL
+   - Plan Free (testing) o $7/mes (producción)
+   - Copiar Internal Database URL
+   ```
+
+3. **Frontend en Vercel**
    ```bash
-   # Instalar Vercel CLI
-   npm i -g vercel
+   # Desde tu navegador
+   https://vercel.com
+   - Import Project
+   - Repo: networkerpro20-oss/opentalk-wisp
+   - Root: apps/frontend
+   - Deploy automático
+   ```
+
+4. **Variables de entorno**
    
-   # Desde /apps/frontend
-   cd apps/frontend
-   vercel
+   Render (Backend):
+   ```env
+   DATABASE_URL=postgresql://... (Internal URL de Render)
+   JWT_SECRET=tu-secret-seguro-32-chars
+   NODE_ENV=production
+   FRONTEND_URL=https://tu-app.vercel.app
    ```
    
-   - Conectar con GitHub
-   - Configurar variables de entorno:
-     ```env
-     NEXT_PUBLIC_API_URL=https://tu-backend.railway.app
-     ```
+   Vercel (Frontend):
+   ```env
+   NEXT_PUBLIC_API_URL=https://tu-backend.onrender.com
+   ```
 
-**Costo estimado: $5-10/mes (solo backend)**
+**Costos:**
+- **Testing**: Gratis (backend se duerme después de 15 min)
+- **Producción**: $7/mes backend + $7/mes DB = $14/mes total
+- **Frontend**: Gratis siempre en Vercel
+
+**Costo estimado: $0 (testing) o $7-14/mes (producción)**
 
 ---
 

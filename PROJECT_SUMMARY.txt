@@ -365,3 +365,39 @@ O ejecuta:
 $ ./deploy.sh
 
 ¡Buena suerte! 🍀
+
+═══════════════════════════════════════════════════════════════════════════════
+                     🆕 NUEVA OPCIÓN: VERCEL + RENDER
+═══════════════════════════════════════════════════════════════════════════════
+
+   ⭐ RECOMENDADO: Mejor relación precio/calidad
+
+   Vercel (Frontend):
+   • Next.js optimizado
+   • Deploy automático
+   • CDN global incluido
+   • SSL incluido
+   • 100% GRATIS
+
+   Render (Backend):
+   • Plan Starter: $7/mes
+   • PostgreSQL: Gratis o $7/mes
+   • Auto-deploy desde GitHub
+   • SSL incluido
+   • Siempre activo
+
+   💰 COSTO TOTAL: $7-14/mes
+   
+   📚 Guía completa: DEPLOY_VERCEL_RENDER.md
+
+   Comparación de Opciones:
+   ┌─────────────────┬──────────┬────────────┬─────────────┐
+   │ Opción          │ Costo    │ Dificultad │ Recomendado │
+   ├─────────────────┼──────────┼────────────┼─────────────┤
+   │ Railway         │ $15/mes  │ Fácil      │ ⭐⭐⭐     │
+   │ Vercel + Render │ $7-14/mes│ Fácil      │ ⭐⭐⭐⭐⭐ │
+   │ VPS             │ $6/mes   │ Media      │ ⭐⭐⭐     │
+   │ Docker Local    │ Gratis   │ Fácil      │ ⭐⭐       │
+   └─────────────────┴──────────┴────────────┴─────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════

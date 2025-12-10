@@ -43,21 +43,31 @@ Tu CRM con WhatsApp está **100% funcional** y listo para deployment.
 
 ### 1. Deploy a Producción (30-60 min)
 
-**Opción Recomendada: Railway**
+Tienes 3 opciones principales de deployment:
 
+**1. Railway (Más fácil - todo en un lugar)**
 ```bash
-# 1. Push a GitHub
-git add .
-git commit -m "feat: MVP complete - ready for production"
-git push origin main
-
-# 2. Deploy en Railway (ver QUICK_START_PRODUCTION.md)
-# - Crea cuenta en railway.app
-# - Conecta tu repo de GitHub
-# - Agrega PostgreSQL
-# - Configura variables de entorno
-# - Deploy automático ✨
+cat QUICK_START_PRODUCTION.md
+# Deploy en railway.app
+# Costo: $15/mes (Backend + Frontend + PostgreSQL)
 ```
+
+**2. Vercel + Render (Mejor precio/calidad)** ⭐ RECOMENDADO
+```bash
+cat DEPLOY_VERCEL_RENDER.md
+# Frontend gratis en Vercel
+# Backend en Render
+# Costo: $7-14/mes
+```
+
+**3. Docker (Local o VPS)**
+```bash
+./deploy.sh
+# Deploy con docker-compose
+# Costo: Gratis (local) o $6/mes (VPS)
+```
+
+**Recomendación:** Empieza con **Vercel + Render** (opción 2) por mejor precio/calidad.
 
 **Otras opciones:**
 - Docker: `./deploy.sh` → opción 1
