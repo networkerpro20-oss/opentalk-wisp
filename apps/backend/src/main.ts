@@ -19,20 +19,39 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
 
-  // CORS
+  // CORS - Configuración robusta
   const frontendUrl = configService.get('FRONTEND_URL') || process.env.FRONTEND_URL || 'http://localhost:3001';
-  console.log('🔧 CORS configurado para:', frontendUrl);
+  const allowedOrigins = [
+    'http://localhost:3001', 
+    'http://localhost:3000',
+    'https://opentalk-wisp-frontend.vercel.app',
+    'https://opentalk-wisp-frontend-mirhxs4hd.vercel.app'
+  ];
+  
+  if (frontendUrl && !allowedOrigins.includes(frontendUrl)) {
+    allowedOrigins.push(frontendUrl);
+  }
+  
+  console.log('🔧 CORS configurado para:', allowedOrigins);
+  
   app.enableCors({
-    origin: [
-      frontendUrl, 
-      'http://localhost:3001', 
-      'http://localhost:3000',
-      'https://opentalk-wisp-frontend.vercel.app',
-      'https://opentalk-wisp-frontend-mirhxs4hd.vercel.app'
-    ],
+    origin: (origin, callback) => {
+      // Permitir requests sin origin (como curl, Postman, etc)
+      if (!origin) return callback(null, true);
+      
+      // Verificar si el origin está en la lista permitida
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn('⚠️ Origin no permitido:', origin);
+        callback(null, false);
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    exposedHeaders: ['Authorization'],
+    maxAge: 86400, // 24 horas
   });
 
   // Global prefix
