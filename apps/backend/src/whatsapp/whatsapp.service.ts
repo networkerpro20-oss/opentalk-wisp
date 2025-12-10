@@ -30,9 +30,13 @@ export class WhatsappService {
   private readonly authDir = join(process.cwd(), 'wa-auth');
 
   constructor(private prisma: PrismaService) {
-    // Crear directorio de auth si no existe
-    if (!fs.existsSync(this.authDir)) {
-      fs.mkdirSync(this.authDir, { recursive: true });
+    // Crear directorio de auth si no existe (solo en entornos con filesystem)
+    try {
+      if (!fs.existsSync(this.authDir)) {
+        fs.mkdirSync(this.authDir, { recursive: true });
+      }
+    } catch (error) {
+      this.logger.warn('Cannot create auth directory (serverless environment?)', error.message);
     }
   }
 
