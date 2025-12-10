@@ -1,9 +1,9 @@
 'use client';
 
+import React from 'react';
 import { AuthGuard } from '@/components/auth-guard';
 import { useAuthStore } from '@/store/auth';
 import { useRouter, usePathname } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import { organizationsAPI } from '@/lib/api';
 import Link from 'next/link';
 
@@ -23,11 +23,6 @@ export default function DashboardLayout({
   const { user, organization, logout } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
-
-  const { data: stats } = useQuery({
-    queryKey: ['organization-stats'],
-    queryFn: organizationsAPI.getStats,
-  });
 
   const handleLogout = () => {
     logout();

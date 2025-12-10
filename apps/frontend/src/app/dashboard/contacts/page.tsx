@@ -160,7 +160,7 @@ export default function ContactsPage() {
                     </Link>
                     <button
                       onClick={() => {
-                        if (confirm('¿Eliminar este contacto?')) {
+                        if (window.confirm('¿Eliminar este contacto?')) {
                           deleteMutation.mutate(contact.id);
                         }
                       }}

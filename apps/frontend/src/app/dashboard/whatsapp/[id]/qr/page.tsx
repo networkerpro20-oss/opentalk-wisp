@@ -99,7 +99,7 @@ export default function QRCodePage({ params }: { params: { id: string } }) {
               <ol className="space-y-2 text-sm text-blue-800">
                 <li>1. Abre WhatsApp en tu teléfono</li>
                 <li>2. Ve a Configuración → Dispositivos vinculados</li>
-                <li>3. Toca "Vincular un dispositivo"</li>
+                <li>3. Toca &quot;Vincular un dispositivo&quot;</li>
                 <li>4. Escanea este código QR</li>
               </ol>
             </div>
