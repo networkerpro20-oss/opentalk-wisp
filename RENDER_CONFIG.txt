@@ -1,0 +1,158 @@
+╔════════════════════════════════════════════════════════════════════════╗
+║           🚀 CONFIGURACIÓN RENDER - OpenTalk Wisp Backend              ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+�� PASO 1: CREAR WEB SERVICE EN RENDER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Ve a: https://dashboard.render.com
+2. Click en "New +" → "Web Service"
+3. Conecta tu repositorio: networkerpro20-oss/opentalk-wisp
+4. Click "Connect"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 PASO 2: CONFIGURACIÓN BÁSICA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Name:           opentalk-wisp-backend
+Region:         Oregon (US West)
+Branch:         main
+Root Directory: (DEJAR VACÍO - no escribir nada)
+Runtime:        Node
+
+Build Command:
+./render-build.sh
+
+Start Command:
+cd apps/backend && node dist/main.js
+
+Plan:           Starter ($7/mes) - RECOMENDADO
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 PASO 3: VARIABLES DE ENTORNO (ENVIRONMENT VARIABLES)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Scroll down hasta la sección "Environment Variables" y agrega estas:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Variable Name:  DATABASE_URL
+Value:          postgresql://opentalk_wisp_db_user:EUX4V8GGzqnDHd6kpADqe6eAfUG2gsJd@dpg-d4sgrqvpm1nc73c2gq90-a.virginia-postgres.render.com/opentalk_wisp_db
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Variable Name:  JWT_SECRET
+Value:          b0845aabe4cc98ef3185e1f8165e6001f1e03d0c94f093319019e897222e3312
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Variable Name:  FRONTEND_URL
+Value:          https://opentalk-wisp-backend.vercel.app
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Variable Name:  NODE_ENV
+Value:          production
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Variable Name:  PORT
+Value:          10000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 PASO 4: CREAR EL SERVICIO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Verifica que todas las variables estén correctas
+2. Click en "Create Web Service"
+3. Render comenzará el build automáticamente
+4. Espera 5-7 minutos mientras compila
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ VERIFICACIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Una vez que el deploy termine (status "Live"), tu backend estará en:
+
+https://opentalk-wisp-backend.onrender.com
+
+Prueba el health endpoint:
+curl https://opentalk-wisp-backend.onrender.com/api/health
+
+Debe responder:
+{"status":"ok","timestamp":"..."}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 NOTAS IMPORTANTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  FRONTEND_URL corregido:
+    - Tu pusiste: opentalk-wisp-backend.vercel.app
+    - Debe ser: https://opentalk-wisp-backend.vercel.app
+    - Ya lo corregí arriba con https://
+
+⚠️  DATABASE_URL:
+    - Usaste la External URL (correcta para conexión desde fuera)
+    - Si falla, pide la Internal URL desde Render Dashboard
+
+⚠️  Plan Starter vs Free:
+    - Free: Se duerme cada 15 min (NO RECOMENDADO)
+    - Starter ($7/mes): Siempre activo (RECOMENDADO)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 PRÓXIMO PASO: DEPLOY FRONTEND EN VERCEL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Una vez que el backend esté en "Live", continúa con Vercel:
+
+1. Ve a: https://vercel.com/new
+2. Importa: networkerpro20-oss/opentalk-wisp
+3. Configura:
+   - Framework: Next.js
+   - Root Directory: apps/frontend
+   - Build Command: pnpm build
+   - Install Command: pnpm install
+
+4. Environment Variables:
+   NEXT_PUBLIC_API_URL=https://opentalk-wisp-backend.onrender.com
+
+5. Deploy!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Si el build falla:
+1. Ve a Logs en Render Dashboard
+2. Busca el error específico
+3. Verifica que DATABASE_URL sea correcta
+4. Asegúrate de que el script render-build.sh tenga permisos
+
+Si no conecta a la base de datos:
+1. Verifica DATABASE_URL (debe empezar con postgresql://)
+2. Si usas External URL, puede tardar más en conectar
+3. Intenta con Internal URL si está disponible
+
+Si aparece "Service Unavailable":
+1. El servicio está iniciando (espera 30-60 seg)
+2. O está en plan Free y se durmió (upgrade a Starter)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 RESUMEN DE COSTOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Backend en Render:    $7/mes (Starter)
+PostgreSQL:           Ya incluido en tu External URL
+Frontend en Vercel:   $0 (Hobby plan)
+──────────────────────────────────────
+TOTAL:                $7/mes
+
+╚════════════════════════════════════════════════════════════════════════╝
