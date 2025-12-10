@@ -27,6 +27,7 @@ async function bootstrap() {
       frontendUrl, 
       'http://localhost:3001', 
       'http://localhost:3000',
+      'https://opentalk-wisp-frontend.vercel.app',
       'https://opentalk-wisp-frontend-mirhxs4hd.vercel.app'
     ],
     credentials: true,
