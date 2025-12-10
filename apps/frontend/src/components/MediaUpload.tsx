@@ -70,6 +70,7 @@ export default function MediaUpload({ instanceId, recipientPhone, onSuccess }: M
           mimeType: file.type,
         });
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('Error sending media:', error);
       }
     };
