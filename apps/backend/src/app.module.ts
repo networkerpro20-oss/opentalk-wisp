@@ -23,6 +23,7 @@ import { DealsModule } from './deals/deals.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
+      ignoreEnvFile: process.env.NODE_ENV === 'production', // En producción, usar solo variables de entorno
     }),
 
     // Rate limiting
