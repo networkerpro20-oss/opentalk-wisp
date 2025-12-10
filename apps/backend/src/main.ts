@@ -19,8 +19,14 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
 
-  // CORS - Configuración robusta
-  const frontendUrl = configService.get('FRONTEND_URL') || process.env.FRONTEND_URL || 'http://localhost:3001';
+  // CORS - Configuración robusta que lee múltiples variables
+  const frontendUrl = 
+    configService.get('FRONTEND_URL') || 
+    process.env.FRONTEND_URL || 
+    configService.get('CORS_ORIGIN') ||
+    process.env.CORS_ORIGIN ||
+    'http://localhost:3001';
+    
   const allowedOrigins = [
     'http://localhost:3001', 
     'http://localhost:3000',
@@ -28,11 +34,13 @@ async function bootstrap() {
     'https://opentalk-wisp-frontend-mirhxs4hd.vercel.app'
   ];
   
+  // Agregar la URL configurada si no está en la lista
   if (frontendUrl && !allowedOrigins.includes(frontendUrl)) {
     allowedOrigins.push(frontendUrl);
   }
   
-  console.log('🔧 CORS configurado para:', allowedOrigins);
+  console.log('🔧 CORS permitidos:', allowedOrigins);
+  console.log('🌐 FRONTEND_URL configurada:', frontendUrl);
   
   app.enableCors({
     origin: (origin, callback) => {
@@ -43,7 +51,7 @@ async function bootstrap() {
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.warn('⚠️ Origin no permitido:', origin);
+        console.warn('⚠️ Origin bloqueado:', origin);
         callback(null, false);
       }
     },
