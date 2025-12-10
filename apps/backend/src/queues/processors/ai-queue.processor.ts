@@ -52,8 +52,8 @@ export class AiQueueProcessor {
 
       // Generar respuesta con IA
       const aiResponse = await this.aiService.generateAutoResponse(
-        conversationId,
         messageContent,
+        [conversationId], // context como array
       );
 
       this.logger.log(`AI Response generated: ${aiResponse.response.substring(0, 100)}...`);

@@ -18,6 +18,7 @@ interface OutgoingMessageJob {
   to: string;
   message: string;
   organizationId: string;
+  instanceId?: string;
   messageId?: string;
   mediaUrl?: string;
 }
@@ -87,9 +88,12 @@ export class WhatsappQueueProcessor {
 
       // Enviar mensaje via WhatsApp
       const result = await this.whatsappService.sendMessage(
-        to,
-        { text: message },
         organizationId,
+        {
+          instanceId: job.data.instanceId || 'default',
+          to,
+          message,
+        },
       );
 
       this.logger.log(`Message sent successfully to ${to}`);
@@ -97,7 +101,7 @@ export class WhatsappQueueProcessor {
       return {
         success: true,
         to,
-        messageId: result.key?.id,
+        messageId: result.id,
       };
     } catch (error) {
       this.logger.error(`Error sending outgoing message: ${error.message}`);
