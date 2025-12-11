@@ -31,7 +31,7 @@ export class QuickRepliesService {
         isActive: createQuickReplyDto.isActive ?? true,
       },
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
   }
@@ -49,7 +49,7 @@ export class QuickRepliesService {
     return this.prisma.quickReply.findMany({
       where,
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
       orderBy: { shortcut: 'asc' },
     });
@@ -70,7 +70,7 @@ export class QuickRepliesService {
         ],
       },
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
       take: 10,
     });
@@ -87,7 +87,7 @@ export class QuickRepliesService {
         isActive: true,
       },
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -105,7 +105,7 @@ export class QuickRepliesService {
     const reply = await this.prisma.quickReply.findFirst({
       where: { id, organizationId },
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -141,7 +141,7 @@ export class QuickRepliesService {
       where: { id },
       data: updateQuickReplyDto,
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
   }
@@ -192,7 +192,7 @@ export class QuickRepliesService {
         },
       },
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
       orderBy: { shortcut: 'asc' },
     });

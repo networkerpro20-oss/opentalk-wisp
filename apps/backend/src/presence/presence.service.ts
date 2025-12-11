@@ -83,7 +83,7 @@ export class PresenceService {
         customMessage: null,
         isOnBreak: false,
         lastSeenAt: null,
-        user: { id: user.id, name: user.name, email: user.email },
+        user: { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email },
       };
     }
 
@@ -110,7 +110,8 @@ export class PresenceService {
         user: {
           select: {
             id: true,
-            name: true,
+            firstName: true,
+            lastName: true,
             email: true,
             presence: true,
           },
@@ -120,7 +121,7 @@ export class PresenceService {
 
     return members.map((member) => ({
       userId: member.user.id,
-      name: member.user.name,
+      name: `${member.user.firstName} ${member.user.lastName}`,
       email: member.user.email,
       role: member.role,
       status: member.user.presence?.status || 'OFFLINE',
@@ -143,7 +144,8 @@ export class PresenceService {
       },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         email: true,
         presence: true,
       },
@@ -151,7 +153,7 @@ export class PresenceService {
 
     return users.map((user) => ({
       userId: user.id,
-      name: user.name,
+      name: `${user.firstName} ${user.lastName}`,
       email: user.email,
       status: user.presence?.status,
       customMessage: user.presence?.customMessage,

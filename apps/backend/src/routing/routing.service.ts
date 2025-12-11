@@ -49,7 +49,7 @@ export class RoutingService {
         assignToTeamId,
       },
       include: {
-        assignToUser: { select: { id: true, name: true, email: true } },
+        assignToUser: { select: { id: true, firstName: true, lastName: true, email: true } },
         assignToTeam: { select: { id: true, name: true } },
       },
     });
@@ -62,7 +62,7 @@ export class RoutingService {
     return this.prisma.routingRule.findMany({
       where: { organizationId },
       include: {
-        assignToUser: { select: { id: true, name: true, email: true } },
+        assignToUser: { select: { id: true, firstName: true, lastName: true, email: true } },
         assignToTeam: { select: { id: true, name: true } },
       },
       orderBy: { priority: 'desc' },
@@ -76,7 +76,7 @@ export class RoutingService {
     const rule = await this.prisma.routingRule.findFirst({
       where: { id, organizationId },
       include: {
-        assignToUser: { select: { id: true, name: true, email: true } },
+        assignToUser: { select: { id: true, firstName: true, lastName: true, email: true } },
         assignToTeam: { select: { id: true, name: true } },
       },
     });
@@ -124,7 +124,7 @@ export class RoutingService {
         assignToTeamId,
       },
       include: {
-        assignToUser: { select: { id: true, name: true, email: true } },
+        assignToUser: { select: { id: true, firstName: true, lastName: true, email: true } },
         assignToTeam: { select: { id: true, name: true } },
       },
     });
@@ -327,7 +327,7 @@ export class RoutingService {
             _count: {
               select: {
                 assignedConversations: {
-                  where: { status: { in: ['ACTIVE', 'PENDING'] } },
+                  where: { status: { in: ['OPEN', 'PENDING'] } },
                 },
               },
             },
@@ -369,7 +369,7 @@ export class RoutingService {
             _count: {
               select: {
                 assignedConversations: {
-                  where: { status: { in: ['ACTIVE', 'PENDING'] } },
+                  where: { status: { in: ['OPEN', 'PENDING'] } },
                 },
               },
             },
