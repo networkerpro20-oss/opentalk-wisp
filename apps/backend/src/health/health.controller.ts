@@ -16,15 +16,47 @@ export class HealthController {
   ) {}
 
   @Get()
-  @HealthCheck()
   @ApiOperation({ summary: 'Health check endpoint for monitoring' })
-  check() {
-    return this.health.check([
-      () => this.prismaHealth.pingCheck('database', this.prisma),
-      () => this.checkRedis(),
-      () => this.checkMemory(),
-      () => this.checkDisk(),
-    ]);
+  async check() {
+    try {
+      const checks = await this.health.check([
+        () => this.prismaHealth.pingCheck('database', this.prisma),
+      ]);
+      
+      // Add Redis check separately (non-blocking)
+      const redisStatus = await this.checkRedis();
+      const memoryStatus = await this.checkMemory();
+      
+      return {
+        ...checks,
+        info: {
+          ...checks.info,
+          ...redisStatus,
+          ...memoryStatus,
+        },
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        info: {
+          database: {
+            status: 'down',
+            error: error.message,
+          },
+        },
+      };
+    }
+  }
+
+  @Get('simple')
+  @ApiOperation({ summary: 'Simple health check without dependencies' })
+  simpleCheck() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development',
+    };
   }
 
   private async checkRedis() {

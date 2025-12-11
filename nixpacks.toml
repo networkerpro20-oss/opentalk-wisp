@@ -20,7 +20,7 @@ cmds = [
 ]
 
 [start]
-cmd = 'cd apps/backend && pnpm prisma migrate deploy && node dist/main.js'
+cmd = 'cd apps/backend && echo "Starting backend..." && pnpm prisma migrate deploy && echo "Migrations done, starting server..." && node dist/main.js'
 
 # Railway-specific optimizations
 [variables]
