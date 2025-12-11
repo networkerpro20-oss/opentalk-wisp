@@ -367,7 +367,7 @@ export class CampaignsService {
   private replaceVariables(template: string, contact: any): string {
     return template
       .replace(/{{name}}/g, contact.name || 'Cliente')
-      .replace(/{{phoneNumber}}/g, contact.phoneNumber || '')
+      .replace(/{{phoneNumber}}/g, contact.phone || '')
       .replace(/{{email}}/g, contact.email || '');
   }
 
