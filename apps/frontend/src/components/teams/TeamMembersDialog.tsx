@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { X, Plus, Trash2, UserPlus } from 'lucide-react';
+import { teamsAPI, usersAPI } from '@/lib/api-teams';
 
 interface TeamMembersDialogProps {
   isOpen: boolean;
@@ -24,10 +25,7 @@ export function TeamMembersDialog({ isOpen, onClose, team }: TeamMembersDialogPr
   const { data: members } = useQuery({
     queryKey: ['team-members', team?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/teams/${team.id}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      const data = await response.json();
+      const data = await teamsAPI.get(team.id);
       return data.members || [];
     },
     enabled: !!team?.id && isOpen,
@@ -35,48 +33,31 @@ export function TeamMembersDialog({ isOpen, onClose, team }: TeamMembersDialogPr
 
   const { data: users } = useQuery({
     queryKey: ['users'],
-    queryFn: async () => {
-      const response = await fetch('/api/users', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      return response.json();
-    },
+    queryFn: usersAPI.list,
     enabled: isAddingMember,
   });
 
   const addMemberMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await fetch(`/api/teams/${team.id}/members`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Error al agregar miembro');
-      return response.json();
-    },
+    mutationFn: (data: any) => teamsAPI.addMember(team.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-members', team.id] });
       toast.success('Miembro agregado');
       setIsAddingMember(false);
       setNewMember({ userId: '', role: 'AGENT', maxConcurrentChats: 5 });
     },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al agregar miembro');
+    },
   });
 
   const removeMemberMutation = useMutation({
-    mutationFn: async (memberId: string) => {
-      const response = await fetch(`/api/teams/${team.id}/members/${memberId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      if (!response.ok) throw new Error('Error al eliminar miembro');
-      return response.json();
-    },
+    mutationFn: (memberId: string) => teamsAPI.removeMember(team.id, memberId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['team-members', team.id] });
       toast.success('Miembro eliminado');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al eliminar miembro');
     },
   });
 

@@ -7,6 +7,7 @@ import { Plus, Users, Settings, Trash2, Edit, BarChart3 } from 'lucide-react';
 import { TeamDialog } from '@/components/teams/TeamDialog';
 import { TeamMembersDialog } from '@/components/teams/TeamMembersDialog';
 import { TeamStatsCard } from '@/components/teams/TeamStatsCard';
+import { teamsAPI } from '@/lib/api-teams';
 
 interface Team {
   id: string;
@@ -27,37 +28,17 @@ export default function TeamsPage() {
 
   const { data: teams, isLoading } = useQuery({
     queryKey: ['teams'],
-    queryFn: async () => {
-      const response = await fetch('/api/teams', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to fetch teams');
-      return response.json();
-    },
+    queryFn: teamsAPI.list,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await fetch(`/api/teams/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to delete team');
-      }
-      return response.json();
-    },
+    mutationFn: teamsAPI.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teams'] });
       toast.success('Equipo eliminado exitosamente');
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Error al eliminar equipo');
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al eliminar equipo');
     },
   });
 

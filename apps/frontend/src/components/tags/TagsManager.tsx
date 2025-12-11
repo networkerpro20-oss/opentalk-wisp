@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Tag, Plus, X, Edit, Trash2 } from 'lucide-react';
+import { tagsAPI } from '@/lib/api-teams';
 
 interface TagItemProps {
   tag: any;
@@ -61,52 +62,30 @@ export function TagsManager() {
 
   const { data: tags } = useQuery({
     queryKey: ['tags'],
-    queryFn: async () => {
-      const response = await fetch('/api/tags', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      return response.json();
-    },
+    queryFn: tagsAPI.list,
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const url = editingId ? `/api/tags/${editingId}` : '/api/tags';
-      const response = await fetch(url, {
-        method: editingId ? 'PATCH' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message);
-      }
-      return response.json();
-    },
+    mutationFn: (data: any) => 
+      editingId ? tagsAPI.update(editingId, data) : tagsAPI.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });
       toast.success(editingId ? 'Etiqueta actualizada' : 'Etiqueta creada');
       resetForm();
     },
-    onError: (error: Error) => {
-      toast.error(error.message);
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al guardar');
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await fetch(`/api/tags/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      if (!response.ok) throw new Error('Error al eliminar');
-    },
+    mutationFn: tagsAPI.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });
       toast.success('Etiqueta eliminada');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al eliminar');
     },
   });
 

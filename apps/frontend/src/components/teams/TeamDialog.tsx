@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tantml:query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
+import { teamsAPI } from '@/lib/api-teams';
 
 interface TeamDialogProps {
   isOpen: boolean;
@@ -24,20 +25,11 @@ export function TeamDialog({ isOpen, onClose, mode, team }: TeamDialogProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
-      const url = mode === 'create' ? '/api/teams' : `/api/teams/${team.id}`;
-      const method = mode === 'create' ? 'POST' : 'PATCH';
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) throw new Error('Error al guardar equipo');
-      return response.json();
+      if (mode === 'create') {
+        return teamsAPI.create(data);
+      } else {
+        return teamsAPI.update(team.id, data);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['teams'] });

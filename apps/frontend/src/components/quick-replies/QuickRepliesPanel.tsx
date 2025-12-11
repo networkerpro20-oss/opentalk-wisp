@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Zap, Plus, Edit, Trash2, Search } from 'lucide-react';
+import { quickRepliesAPI } from '@/lib/api-teams';
 
 export function QuickRepliesPanel() {
   const [search, setSearch] = useState('');
@@ -20,49 +21,30 @@ export function QuickRepliesPanel() {
 
   const { data: replies, isLoading } = useQuery({
     queryKey: ['quick-replies', search],
-    queryFn: async () => {
-      const url = search
-        ? `/api/quick-replies/search?q=${encodeURIComponent(search)}`
-        : '/api/quick-replies';
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      return response.json();
-    },
+    queryFn: () => search ? quickRepliesAPI.search(search) : quickRepliesAPI.list(),
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const url = editingId ? `/api/quick-replies/${editingId}` : '/api/quick-replies';
-      const response = await fetch(url, {
-        method: editingId ? 'PATCH' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Error al guardar');
-      return response.json();
-    },
+    mutationFn: (data: any) => 
+      editingId ? quickRepliesAPI.update(editingId, data) : quickRepliesAPI.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quick-replies'] });
       toast.success(editingId ? 'Respuesta actualizada' : 'Respuesta creada');
       resetForm();
     },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al guardar');
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await fetch(`/api/quick-replies/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      if (!response.ok) throw new Error('Error al eliminar');
-    },
+    mutationFn: quickRepliesAPI.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quick-replies'] });
       toast.success('Respuesta eliminada');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al eliminar');
     },
   });
 

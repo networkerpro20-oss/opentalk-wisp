@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Circle, Coffee } from 'lucide-react';
 import { toast } from 'sonner';
+import { presenceAPI } from '@/lib/api-teams';
 
 const STATUS_CONFIG = {
   ONLINE: { label: 'En línea', color: 'bg-green-500', textColor: 'text-green-700' },
@@ -19,32 +20,19 @@ export function PresenceWidget() {
 
   const { data: presence } = useQuery({
     queryKey: ['my-presence'],
-    queryFn: async () => {
-      const response = await fetch('/api/presence/me', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      return response.json();
-    },
+    queryFn: presenceAPI.getMyStatus,
     refetchInterval: 30000, // Refresh every 30s
   });
 
   const updatePresenceMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await fetch('/api/presence/me', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Error updating presence');
-      return response.json();
-    },
+    mutationFn: presenceAPI.updateMyStatus,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-presence'] });
       toast.success('Estado actualizado');
       setIsOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al actualizar estado');
     },
   });
 

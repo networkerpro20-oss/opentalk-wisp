@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { StickyNote, Plus, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { internalNotesAPI } from '@/lib/api-teams';
 
 export function InternalNotesPanel({ conversationId }: { conversationId: string }) {
   const [newNote, setNewNote] = useState('');
@@ -13,46 +14,31 @@ export function InternalNotesPanel({ conversationId }: { conversationId: string 
 
   const { data: notes, isLoading } = useQuery({
     queryKey: ['internal-notes', conversationId],
-    queryFn: async () => {
-      const response = await fetch(`/api/internal-notes/conversation/${conversationId}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      return response.json();
-    },
+    queryFn: () => internalNotesAPI.listByConversation(conversationId),
     enabled: !!conversationId,
   });
 
   const createMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const response = await fetch('/api/internal-notes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({ conversationId, content }),
-      });
-      if (!response.ok) throw new Error('Error al crear nota');
-      return response.json();
-    },
+    mutationFn: (content: string) => 
+      internalNotesAPI.create({ conversationId, content }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['internal-notes', conversationId] });
       setNewNote('');
       toast.success('Nota creada');
     },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al crear nota');
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await fetch(`/api/internal-notes/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-      });
-      if (!response.ok) throw new Error('Error al eliminar nota');
-    },
+    mutationFn: internalNotesAPI.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['internal-notes', conversationId] });
       toast.success('Nota eliminada');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al eliminar nota');
     },
   });
 
