@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { whatsappAPI } from '@/lib/api-extended';
 import { toast } from 'sonner';
@@ -109,12 +110,12 @@ export default function WhatsAppPage() {
             )}
 
             {instance.status === 'QR_CODE' && (
-              <a
+              <Link
                 href={`/dashboard/whatsapp/${instance.id}/qr`}
                 className="block w-full text-center px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
               >
                 Ver Código QR
-              </a>
+              </Link>
             )}
 
             {instance.status === 'DISCONNECTED' && (

@@ -1,16 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { whatsappAPI } from '@/lib/api-extended';
 
 export default function QRCodePage({ params }: { params: { id: string } }) {
   const [countdown, setCountdown] = useState(5);
+  const router = useRouter();
 
   const { data: instance, isLoading, refetch } = useQuery({
     queryKey: ['whatsapp-qr', params.id],
     queryFn: () => whatsappAPI.getQRCode(params.id),
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: 3000, // Refresh every 3 seconds to get new QR before expiry
   });
 
   useEffect(() => {
@@ -18,7 +21,7 @@ export default function QRCodePage({ params }: { params: { id: string } }) {
       setCountdown((prev) => {
         if (prev <= 1) {
           refetch();
-          return 5;
+          return 3;
         }
         return prev - 1;
       });
@@ -26,6 +29,16 @@ export default function QRCodePage({ params }: { params: { id: string } }) {
 
     return () => clearInterval(interval);
   }, [refetch]);
+
+  // Auto-redirect when connected
+  useEffect(() => {
+    if (instance?.status === 'CONNECTED') {
+      const timer = setTimeout(() => {
+        router.push('/dashboard/whatsapp');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [instance?.status, router]);
 
   if (isLoading) {
     return (
@@ -47,13 +60,16 @@ export default function QRCodePage({ params }: { params: { id: string } }) {
           {instance.phone && (
             <p className="mt-4 text-lg font-semibold">{instance.phone}</p>
           )}
+          <p className="text-sm text-green-600 mt-2">
+            Redirigiendo automáticamente en 3 segundos...
+          </p>
         </div>
-        <a
+        <Link
           href="/dashboard/whatsapp"
           className="inline-block bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
         >
           Volver a Instancias
-        </a>
+        </Link>
       </div>
     );
   }
@@ -74,7 +90,7 @@ export default function QRCodePage({ params }: { params: { id: string } }) {
           <div className="space-y-6">
             {/* QR Code */}
             <div className="flex justify-center bg-gray-50 p-8 rounded-lg">
-              <div className="bg-white p-4 rounded-lg shadow">
+              <div className="bg-white p-4 rounded-lg shadow-md border-2 border-gray-200">
                 {/* Usar img nativo para Data URLs en lugar de Next Image */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -83,13 +99,20 @@ export default function QRCodePage({ params }: { params: { id: string } }) {
                   width={300}
                   height={300}
                   className="w-72 h-72"
+                  key={instance.qrCode} // Force re-render when QR changes
                 />
               </div>
             </div>
 
             {/* Auto-refresh countdown */}
-            <div className="text-center text-sm text-gray-500">
-              Actualizando en {countdown} segundos...
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 text-sm text-gray-600 bg-blue-50 px-4 py-2 rounded-full">
+                <svg className="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Actualizando en {countdown} segundos...</span>
+              </div>
             </div>
 
             {/* Instructions */}
@@ -128,12 +151,12 @@ export default function QRCodePage({ params }: { params: { id: string } }) {
         )}
 
         <div className="mt-6 text-center">
-          <a
+          <Link
             href="/dashboard/whatsapp"
             className="text-gray-600 hover:text-gray-900 text-sm"
           >
             ← Volver a instancias
-          </a>
+          </Link>
         </div>
       </div>
     </div>

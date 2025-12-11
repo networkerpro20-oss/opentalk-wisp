@@ -404,9 +404,10 @@ export class WhatsappService {
         },
         printQRInTerminal: false, // Reducir uso de memoria en logs
         browser: Browsers.ubuntu('OpenTalkWisp'),
-        defaultQueryTimeoutMs: 30000,
-        connectTimeoutMs: 30000,
+        defaultQueryTimeoutMs: 60000, // Aumentado a 60s para dar más tiempo
+        connectTimeoutMs: 60000,
         keepAliveIntervalMs: 30000,
+        qrTimeout: 60000, // QR timeout aumentado a 60 segundos
         msgRetryCounterCache: undefined, // Reducir cache
         getMessage: async (key) => {
           return { conversation: '' };
@@ -423,26 +424,40 @@ export class WhatsappService {
       socket.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
+        this.logger.log(`Connection update for instance ${instanceId}:`, {
+          connection,
+          hasQR: !!qr,
+          lastDisconnect: lastDisconnect?.error?.message,
+        });
+
         // Actualizar QR code
         if (qr) {
-          // Convertir QR string a Data URL para que el frontend pueda mostrarlo
-          const qrDataURL = await QRCode.toDataURL(qr);
-          
-          this.connections.set(instanceId, {
-            socket,
-            qr: qrDataURL,
-            status: WhatsAppStatus.QR_CODE,
-          });
-
-          await this.prisma.whatsAppInstance.update({
-            where: { id: instanceId },
-            data: {
+          try {
+            // Convertir QR string a Data URL para que el frontend pueda mostrarlo
+            const qrDataURL = await QRCode.toDataURL(qr, {
+              width: 400,
+              margin: 2,
+              errorCorrectionLevel: 'M',
+            });
+            
+            this.connections.set(instanceId, {
+              socket,
+              qr: qrDataURL,
               status: WhatsAppStatus.QR_CODE,
-              qrCode: qrDataURL,
-            },
-          });
+            });
 
-          this.logger.log(`QR Code generated for instance ${instanceId}`);
+            await this.prisma.whatsAppInstance.update({
+              where: { id: instanceId },
+              data: {
+                status: WhatsAppStatus.QR_CODE,
+                qrCode: qrDataURL,
+              },
+            });
+
+            this.logger.log(`QR Code generated for instance ${instanceId} (valid for ~40 seconds)`);
+          } catch (error) {
+            this.logger.error(`Error generating QR code: ${error.message}`);
+          }
         }
 
         // Conexión exitosa
@@ -450,6 +465,7 @@ export class WhatsappService {
           this.connections.set(instanceId, {
             socket,
             status: WhatsAppStatus.CONNECTED,
+            qr: undefined, // Limpiar QR
           });
 
           const phone = socket.user?.id?.split(':')[0];
@@ -460,11 +476,11 @@ export class WhatsappService {
               status: WhatsAppStatus.CONNECTED,
               phone,
               connectedAt: new Date(),
-              qrCode: null,
+              qrCode: null, // Limpiar QR de BD
             },
           });
 
-          this.logger.log(`WhatsApp instance ${instanceId} connected`);
+          this.logger.log(`✅ WhatsApp instance ${instanceId} connected successfully! Phone: ${phone}`);
         }
 
         // Desconexión
