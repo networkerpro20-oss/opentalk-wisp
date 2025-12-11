@@ -139,12 +139,12 @@ export default function AnalyticsPage() {
               <Users className="text-blue-600" size={24} />
             </div>
             <span className="text-green-600 text-sm font-medium">
-              +{analytics.kpis.growthRate}%
+              +{analytics?.kpis?.growthRate ?? 0}%
             </span>
           </div>
           <h3 className="text-gray-500 text-sm mb-1">Total Contactos</h3>
           <p className="text-3xl font-bold text-gray-900">
-            {analytics.kpis.totalContacts.toLocaleString()}
+            {analytics?.kpis?.totalContacts?.toLocaleString() ?? '0'}
           </p>
         </div>
 
@@ -157,7 +157,7 @@ export default function AnalyticsPage() {
           </div>
           <h3 className="text-gray-500 text-sm mb-1">Conversaciones</h3>
           <p className="text-3xl font-bold text-gray-900">
-            {analytics.kpis.activeConversations}
+            {analytics?.kpis?.activeConversations ?? 0}
           </p>
         </div>
 
@@ -167,12 +167,12 @@ export default function AnalyticsPage() {
               <TrendingUp className="text-purple-600" size={24} />
             </div>
             <span className="text-green-600 text-sm font-medium">
-              {analytics.kpis.conversionRate}%
+              {analytics?.kpis?.conversionRate ?? 0}%
             </span>
           </div>
           <h3 className="text-gray-500 text-sm mb-1">Deals Abiertos</h3>
           <p className="text-3xl font-bold text-gray-900">
-            {analytics.kpis.totalDeals}
+            {analytics?.kpis?.totalDeals ?? 0}
           </p>
         </div>
 
@@ -185,7 +185,7 @@ export default function AnalyticsPage() {
           </div>
           <h3 className="text-gray-500 text-sm mb-1">Revenue Total</h3>
           <p className="text-3xl font-bold text-gray-900">
-            {formatCurrency(analytics.kpis.totalRevenue)}
+            {formatCurrency(analytics?.kpis?.totalRevenue ?? 0)}
           </p>
         </div>
       </div>
@@ -198,7 +198,7 @@ export default function AnalyticsPage() {
             Conversaciones por Día
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={analytics.conversationsByDay}>
+            <LineChart data={analytics?.conversationsByDay ?? []}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis />
@@ -221,7 +221,7 @@ export default function AnalyticsPage() {
             Deals por Etapa
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analytics.dealsByStage}>
+            <BarChart data={analytics?.dealsByStage ?? []}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="stage" />
               <YAxis />
@@ -244,7 +244,7 @@ export default function AnalyticsPage() {
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={analytics.channelDistribution}
+                data={analytics?.channelDistribution ?? []}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
@@ -255,7 +255,7 @@ export default function AnalyticsPage() {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {analytics.channelDistribution.map((entry, index) => (
+                {analytics?.channelDistribution?.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}
@@ -277,7 +277,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-600">Promedio</span>
                 <span className="text-2xl font-bold text-blue-600">
-                  {analytics.responseTime.average} min
+                  {analytics?.responseTime?.average ?? 0} min
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -292,7 +292,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-600">Mediana</span>
                 <span className="text-2xl font-bold text-green-600">
-                  {analytics.responseTime.median} min
+                  {analytics?.responseTime?.median ?? 0} min
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -307,7 +307,7 @@ export default function AnalyticsPage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-600">Percentil 90</span>
                 <span className="text-2xl font-bold text-orange-600">
-                  {analytics.responseTime.percentile90} min
+                  {analytics?.responseTime?.percentile90 ?? 0} min
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -345,7 +345,7 @@ export default function AnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {analytics.topAgents.map((agent, index) => (
+              {analytics?.topAgents?.map((agent, index) => (
                 <tr key={index} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">

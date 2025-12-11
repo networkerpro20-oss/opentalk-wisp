@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, DollarSign, Calendar, User, MoreVertical, Edit, Trash2 } from 'lucide-react';
@@ -171,9 +172,11 @@ export function DealCard({ deal, onEdit, onDelete, onClick }: DealCardProps) {
       {deal.contact && (
         <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
           {deal.contact.avatar ? (
-            <img
+            <Image
               src={deal.contact.avatar}
               alt={deal.contact.name}
+              width={20}
+              height={20}
               className="w-5 h-5 rounded-full"
             />
           ) : (
@@ -200,9 +203,11 @@ export function DealCard({ deal, onEdit, onDelete, onClick }: DealCardProps) {
           <div className="flex items-center gap-1">
             <User size={12} />
             {deal.assignedTo.avatar ? (
-              <img
+              <Image
                 src={deal.assignedTo.avatar}
                 alt={`${deal.assignedTo.firstName} ${deal.assignedTo.lastName}`}
+                width={16}
+                height={16}
                 className="w-4 h-4 rounded-full"
                 title={`${deal.assignedTo.firstName} ${deal.assignedTo.lastName}`}
               />
