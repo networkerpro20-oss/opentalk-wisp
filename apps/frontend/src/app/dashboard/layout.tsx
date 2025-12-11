@@ -13,6 +13,7 @@ const navigation = [
   { name: 'Contactos', href: '/dashboard/contacts', icon: '👥' },
   { name: 'Conversaciones', href: '/dashboard/conversations', icon: '💬' },
   { name: 'Deals', href: '/dashboard/deals', icon: '💰' },
+  { name: 'Campañas', href: '/dashboard/campaigns', icon: '📣' },
   { name: 'Flujos', href: '/dashboard/flows', icon: '🔄' },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: '📱' },
   { name: 'Equipos', href: '/dashboard/teams', icon: '👨‍👩‍👧‍👦' },

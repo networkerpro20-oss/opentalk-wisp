@@ -25,6 +25,7 @@ import { PresenceModule } from './presence/presence.module';
 import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 import { InternalNotesModule } from './internal-notes/internal-notes.module';
 import { TagsModule } from './tags/tags.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { TagsModule } from './tags/tags.module';
     QuickRepliesModule,
     InternalNotesModule,
     TagsModule,
+    CampaignsModule,
   ],
 })
 export class AppModule {}
