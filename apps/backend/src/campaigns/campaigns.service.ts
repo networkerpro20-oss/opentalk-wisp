@@ -77,7 +77,7 @@ export class CampaignsService {
               select: {
                 id: true,
                 name: true,
-                phoneNumber: true,
+                phone: true,
               },
             },
           },

@@ -77,7 +77,7 @@ export class InternalNotesService {
         conversation: { organizationId },
       },
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         conversation: {
           select: {
             id: true,
@@ -100,7 +100,7 @@ export class InternalNotesService {
         conversation: { organizationId },
       },
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         conversation: {
           select: {
             id: true,
@@ -174,7 +174,7 @@ export class InternalNotesService {
         content: { contains: query, mode: 'insensitive' },
       },
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         conversation: {
           select: {
             id: true,
