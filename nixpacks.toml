@@ -1,0 +1,21 @@
+[phases.setup]
+nixPkgs = ['nodejs-18_x', 'pnpm']
+
+[phases.install]
+cmds = [
+  'pnpm install --frozen-lockfile'
+]
+
+[phases.build]
+cmds = [
+  'cd apps/backend',
+  'pnpm prisma generate',
+  'pnpm build'
+]
+
+[start]
+cmd = 'cd apps/backend && pnpm prisma migrate deploy && pnpm start:prod'
+
+[variables]
+NODE_ENV = 'production'
+PORT = '3000'

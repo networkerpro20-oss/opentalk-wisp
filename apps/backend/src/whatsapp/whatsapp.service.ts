@@ -29,23 +29,28 @@ interface WAConnection {
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
   private connections: Map<string, WAConnection> = new Map();
-  // Use /tmp directory for Render ephemeral filesystem
-  private readonly authDir = process.env.NODE_ENV === 'production' 
-    ? join('/tmp', 'wa-auth')
-    : join(process.cwd(), 'wa-auth');
+  // Use persistent volume in Railway, /tmp in other production, local in dev
+  private readonly authDir = process.env.RAILWAY_ENVIRONMENT 
+    ? join('/app', 'wa-sessions')  // Railway persistent volume
+    : process.env.NODE_ENV === 'production'
+    ? join('/tmp', 'wa-auth')      // Render/other (ephemeral)
+    : join(process.cwd(), 'wa-auth'); // Development
 
   constructor(private prisma: PrismaService) {
     // Crear directorio de auth si no existe
     try {
       if (!fs.existsSync(this.authDir)) {
         fs.mkdirSync(this.authDir, { recursive: true });
-        this.logger.log(`Created auth directory at: ${this.authDir}`);
+        this.logger.log(`✅ Created auth directory at: ${this.authDir}`);
       } else {
-        this.logger.log(`Using existing auth directory: ${this.authDir}`);
+        this.logger.log(`✅ Using existing auth directory: ${this.authDir}`);
       }
+      
+      // Log environment info
+      this.logger.log(`📁 Storage: ${process.env.RAILWAY_ENVIRONMENT ? 'Railway Persistent Volume' : process.env.NODE_ENV === 'production' ? 'Ephemeral /tmp' : 'Local filesystem'}`);
     } catch (error) {
-      this.logger.error(`Failed to create auth directory: ${error.message}`);
-      this.logger.warn('WhatsApp connections may not persist across restarts');
+      this.logger.error(`❌ Failed to create auth directory: ${error.message}`);
+      this.logger.warn('⚠️  WhatsApp connections may not persist across restarts');
     }
   }
 
