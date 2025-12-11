@@ -47,6 +47,9 @@ model Organization {
   campaigns     Campaign[]
   flows         Flow[]
   whatsappInstances WhatsAppInstance[]
+  teams         Team[]
+  routingRules  RoutingRule[]
+  quickReplies  QuickReply[]
   
   @@index([slug])
   @@index([domain])
@@ -91,6 +94,11 @@ model User {
   assignedDeals         Deal[]
   sentMessages          Message[]
   activities            Activity[]
+  teamMemberships       TeamMember[]
+  presence              UserPresence?
+  routingRulesAssigned  RoutingRule[] @relation("RoutingRuleUser")
+  quickRepliesCreated   QuickReply[]  @relation("QuickReplyCreator")
+  internalNotesCreated  InternalNote[] @relation("InternalNoteAuthor")
   
   @@index([organizationId])
   @@index([email])
@@ -204,6 +212,8 @@ model Conversation {
   // Asignación
   assignedToId String?
   assignedTo   User? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedToTeamId String?
+  assignedToTeam   Team? @relation("TeamConversations", fields: [assignedToTeamId], references: [id], onDelete: SetNull)
   
   // WhatsApp
   whatsappInstanceId String?
@@ -229,6 +239,7 @@ model Conversation {
   
   // Relaciones
   messages Message[]
+  internalNotes InternalNote[]
   
   @@index([organizationId])
   @@index([contactId])
@@ -581,4 +592,192 @@ enum FlowTrigger {
 enum FlowStatus {
   ACTIVE
   INACTIVE
+}
+
+// ============================================
+// FASE 1: TEAMS & ROUTING
+// ============================================
+
+model Team {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  isActive        Boolean  @default(true)
+  
+  // Configuración
+  maxConcurrentChats  Int  @default(10)
+  workingHours        Json? // { monday: {start: "09:00", end: "18:00"}, ... }
+  
+  // Multi-tenancy
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Relaciones
+  members         TeamMember[]
+  conversations   Conversation[] @relation("TeamConversations")
+  routingRules    RoutingRule[]
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([isActive])
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String
+  role      TeamRole @default(AGENT)
+  isActive  Boolean  @default(true)
+  
+  // Configuración individual
+  maxConcurrentChats Int @default(5)
+  
+  // Relaciones
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+enum TeamRole {
+  ADMIN
+  SUPERVISOR
+  AGENT
+}
+
+model RoutingRule {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  priority        Int      @default(0)
+  isActive        Boolean  @default(true)
+  
+  // Condiciones (JSON)
+  conditions      Json     // { channel: "WHATSAPP", tags: [], keywords: [], hours: {} }
+  
+  // Acciones
+  assignmentType  AssignmentType @default(ROUND_ROBIN)
+  assignToUserId  String?
+  assignToTeamId  String?
+  
+  // Multi-tenancy
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Relaciones
+  assignToUser    User?    @relation("RoutingRuleUser", fields: [assignToUserId], references: [id], onDelete: SetNull)
+  assignToTeam    Team?    @relation(fields: [assignToTeamId], references: [id], onDelete: SetNull)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([isActive])
+  @@index([priority])
+  @@map("routing_rules")
+}
+
+enum AssignmentType {
+  ROUND_ROBIN
+  LEAST_BUSY
+  SPECIFIC_USER
+  SPECIFIC_TEAM
+  LOAD_BALANCED
+}
+
+model UserPresence {
+  id              String        @id @default(uuid())
+  userId          String        @unique
+  status          PresenceStatus @default(OFFLINE)
+  customMessage   String?
+  
+  // Capacidad
+  maxConcurrentChats  Int       @default(5)
+  currentChats        Int       @default(0)
+  
+  // Horario y disponibilidad
+  workingHours    Json?         // { monday: {start: "09:00", end: "18:00"}, ... }
+  isOnBreak       Boolean       @default(false)
+  breakEndsAt     DateTime?
+  
+  // Relaciones
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  lastSeenAt      DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@map("user_presence")
+}
+
+enum PresenceStatus {
+  ONLINE
+  BUSY
+  AWAY
+  OFFLINE
+}
+
+// ============================================
+// FASE 2: PRODUCTIVITY
+// ============================================
+
+model QuickReply {
+  id              String   @id @default(uuid())
+  shortcut        String   // /gracias, /horario
+  title           String
+  content         String   // "Hola {{nombre}}, gracias por contactarnos"
+  category        String?  // "Saludos", "Despedidas", "Precios"
+  
+  isShared        Boolean  @default(true)
+  useCount        Int      @default(0)
+  
+  // Multi-tenancy
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  createdById     String
+  createdBy       User         @relation("QuickReplyCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([organizationId, shortcut])
+  @@index([organizationId])
+  @@index([category])
+  @@map("quick_replies")
+}
+
+model InternalNote {
+  id              String   @id @default(uuid())
+  conversationId  String
+  authorId        String
+  content         String
+  mentions        String[] // IDs de usuarios mencionados
+  
+  // Relaciones
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author          User         @relation("InternalNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([conversationId])
+  @@index([authorId])
+  @@map("internal_notes")
 }

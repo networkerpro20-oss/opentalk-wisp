@@ -19,6 +19,9 @@ import { DealsModule } from './deals/deals.module';
 import { AiModule } from './ai/ai.module';
 import { FlowsModule } from './flows/flows.module';
 import { QueuesModule } from './queues/queues.module';
+import { TeamsModule } from './teams/teams.module';
+import { RoutingModule } from './routing/routing.module';
+import { PresenceModule } from './presence/presence.module';
 
 @Module({
   imports: [
@@ -56,6 +59,9 @@ import { QueuesModule } from './queues/queues.module';
     AiModule,
     FlowsModule,
     QueuesModule,
+    TeamsModule,
+    RoutingModule,
+    PresenceModule,
   ],
 })
 export class AppModule {}
