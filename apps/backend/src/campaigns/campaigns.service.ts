@@ -227,7 +227,7 @@ export class CampaignsService {
     const sent = executions.filter((e) => e.status === 'SENT').length;
     const delivered = executions.filter((e) => e.status === 'DELIVERED').length;
     const read = executions.filter((e) => e.status === 'READ').length;
-    const replied = executions.filter((e) => e.replied).length;
+    const replied = executions.filter((e) => e.repliedAt !== null).length;
     const failed = executions.filter((e) => e.status === 'FAILED').length;
 
     return {

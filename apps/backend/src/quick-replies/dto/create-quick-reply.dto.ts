@@ -4,6 +4,11 @@ import { ApiProperty } from '@nestjs/swagger';
 export class CreateQuickReplyDto {
   @ApiProperty()
   @IsString()
+  @MaxLength(100)
+  title: string;
+
+  @ApiProperty()
+  @IsString()
   @MaxLength(50)
   shortcut: string;
 

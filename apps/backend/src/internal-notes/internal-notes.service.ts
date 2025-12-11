@@ -30,7 +30,7 @@ export class InternalNotesService {
         createdById: userId,
       },
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         conversation: { select: { id: true, status: true } },
       },
     });
@@ -52,7 +52,7 @@ export class InternalNotesService {
     return this.prisma.internalNote.findMany({
       where: { conversationId },
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -138,7 +138,7 @@ export class InternalNotesService {
       where: { id },
       data: updateInternalNoteDto,
       include: {
-        createdBy: { select: { id: true, name: true, email: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         conversation: {
           select: {
             id: true,

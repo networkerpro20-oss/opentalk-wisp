@@ -1,17 +1,28 @@
+# Railway Nixpacks Configuration for OpenTalkWisp Backend
+# https://nixpacks.com/docs/configuration/file
+
 [phases.setup]
-nixPkgs = ['nodejs_20']
+nixPkgs = ['nodejs_20', 'openssl']
+aptPkgs = ['ca-certificates']
 
 [phases.install]
 cmds = [
   'corepack enable',
   'corepack prepare pnpm@8.15.0 --activate',
-  'pnpm install --frozen-lockfile'
+  'pnpm install --frozen-lockfile --prefer-offline'
 ]
 
 [phases.build]
 cmds = [
-  'cd apps/backend && pnpm prisma generate && pnpm build'
+  'cd apps/backend',
+  'pnpm prisma generate',
+  'pnpm build'
 ]
 
 [start]
 cmd = 'cd apps/backend && pnpm prisma migrate deploy && node dist/main.js'
+
+# Railway-specific optimizations
+[variables]
+NODE_ENV = 'production'
+NPM_CONFIG_PRODUCTION = 'false'

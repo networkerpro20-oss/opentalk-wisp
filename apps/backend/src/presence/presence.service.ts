@@ -35,7 +35,7 @@ export class PresenceService {
           lastSeenAt: new Date(),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
         },
       });
     } else {
@@ -49,7 +49,7 @@ export class PresenceService {
           lastSeenAt: new Date(),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, firstName: true, lastName: true, email: true } },
         },
       });
     }

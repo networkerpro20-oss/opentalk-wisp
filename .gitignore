@@ -19,6 +19,7 @@ dist/
 .env
 .env*.local
 .env.production
+.env.railway
 
 # Vercel
 .vercel
