@@ -1,20 +1,18 @@
 [phases.setup]
-nixPkgs = ['nodejs-18_x', 'pnpm']
+nixPkgs = ['nodejs_20', 'pnpm-9']
 
 [phases.install]
 cmds = [
-  'pnpm install --frozen-lockfile'
+  'pnpm install --frozen-lockfile --filter opentalk-wisp-backend...'
 ]
 
 [phases.build]
 cmds = [
-  'cd apps/backend',
-  'pnpm prisma generate',
-  'pnpm build'
+  'cd apps/backend && pnpm prisma generate && pnpm build'
 ]
 
 [start]
-cmd = 'cd apps/backend && pnpm prisma migrate deploy && pnpm start:prod'
+cmd = 'cd apps/backend && pnpm prisma migrate deploy && node dist/main.js'
 
 [variables]
 NODE_ENV = 'production'
