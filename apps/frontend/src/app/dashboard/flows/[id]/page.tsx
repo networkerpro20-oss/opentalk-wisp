@@ -15,6 +15,7 @@ import '@xyflow/react/dist/style.css';
 import { useFlowStore } from '@/store/flowStore';
 import { NodePalette } from '@/components/NodePalette';
 import { NodeEditor } from '@/components/NodeEditor';
+import { FlowTestPanel } from '@/components/flows/FlowTestPanel';
 import {
   TriggerNode,
   MessageNode,
@@ -43,9 +44,10 @@ const nodeTypes = {
   api: APINode,
 };
 
-function FlowCanvas({ onSave }: { onSave: () => void }) {
+function FlowCanvas({ onSave, flowId }: { onSave: () => void; flowId: string }) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [showTestPanel, setShowTestPanel] = useState(false);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
   const {
@@ -110,6 +112,16 @@ function FlowCanvas({ onSave }: { onSave: () => void }) {
 
           <div className="flex items-center gap-3">
             <button
+              onClick={() => setShowTestPanel(!showTestPanel)}
+              className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition ${
+                showTestPanel
+                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+              }`}
+            >
+              🧪 {showTestPanel ? 'Ocultar Test' : 'Test & Métricas'}
+            </button>
+            <button
               onClick={onSave}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
             >
@@ -165,6 +177,13 @@ function FlowCanvas({ onSave }: { onSave: () => void }) {
       </div>
 
       {showEditor && <NodeEditor onClose={() => setShowEditor(false)} />}
+      {showTestPanel && flowId !== 'new' && (
+        <FlowTestPanel
+          flowId={flowId}
+          isOpen={showTestPanel}
+          onClose={() => setShowTestPanel(false)}
+        />
+      )}
     </div>
   );
 }
@@ -214,7 +233,7 @@ export default function FlowEditorPage({ params }: { params: { id: string } }) {
 
   return (
     <ReactFlowProvider>
-      <FlowCanvas onSave={handleSave} />
+      <FlowCanvas onSave={handleSave} flowId={flowId} />
     </ReactFlowProvider>
   );
 }
