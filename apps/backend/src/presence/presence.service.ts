@@ -71,7 +71,7 @@ export class PresenceService {
     const presence = await this.prisma.userPresence.findUnique({
       where: { userId },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
 

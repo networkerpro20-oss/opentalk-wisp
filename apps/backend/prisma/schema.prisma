@@ -99,6 +99,7 @@ model User {
   routingRulesAssigned  RoutingRule[] @relation("RoutingRuleUser")
   quickRepliesCreated   QuickReply[]  @relation("QuickReplyCreator")
   internalNotesCreated  InternalNote[] @relation("InternalNoteAuthor")
+  campaignsCreated      Campaign[]    @relation("CampaignCreator")
   
   @@index([organizationId])
   @@index([email])
@@ -155,6 +156,7 @@ model Contact {
   deals         Deal[]
   tags          ContactTag[]
   activities    Activity[]
+  campaignExecutions CampaignExecution[]
   
   @@index([organizationId])
   @@index([phone])
@@ -550,21 +552,74 @@ model Campaign {
   id        String   @id @default(uuid())
   
   name      String
+  description String?
   status    CampaignStatus @default(DRAFT)
   
+  // Configuración
+  targetSegment   Json?        // Criterios de segmentación
+  messageTemplate String
+  mediaUrl        String?
+  
   // Programación
-  scheduledAt DateTime?
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  messagesPerMinute Int       @default(10)
+  autoStart       Boolean     @default(false)
   
   // Multi-tenancy
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Creator
+  createdById    String
+  createdBy      User         @relation("CampaignCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  
+  // Relaciones
+  executions     CampaignExecution[]
   
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   @@index([organizationId])
+  @@index([status])
   @@map("campaigns")
+}
+
+model CampaignExecution {
+  id         String   @id @default(uuid())
+  campaignId String
+  contactId  String
+  
+  status     ExecutionStatus @default(PENDING)
+  sentAt     DateTime?
+  deliveredAt DateTime?
+  readAt     DateTime?
+  repliedAt  DateTime?
+  error      String?
+  
+  // Relaciones
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([status])
+  @@map("campaign_executions")
+}
+
+enum ExecutionStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  REPLIED
+  FAILED
 }
 
 enum CampaignStatus {
@@ -573,6 +628,7 @@ enum CampaignStatus {
   RUNNING
   COMPLETED
   PAUSED
+  CANCELLED
 }
 
 model Flow {
@@ -755,8 +811,11 @@ model QuickReply {
   shortcut        String   // /gracias, /horario
   title           String
   content         String   // "Hola {{nombre}}, gracias por contactarnos"
+  description     String?
   category        String?  // "Saludos", "Despedidas", "Precios"
+  tags            String[] @default([])
   
+  isActive        Boolean  @default(true)
   isShared        Boolean  @default(true)
   useCount        Int      @default(0)
   
@@ -780,19 +839,20 @@ model QuickReply {
 model InternalNote {
   id              String   @id @default(uuid())
   conversationId  String
-  authorId        String
   content         String
   mentions        String[] // IDs de usuarios mencionados
   
   // Relaciones
   conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  author          User         @relation("InternalNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  
+  createdById     String
+  createdBy       User         @relation("InternalNoteAuthor", fields: [createdById], references: [id], onDelete: Cascade)
   
   // Timestamps
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
   @@index([conversationId])
-  @@index([authorId])
+  @@index([createdById])
   @@map("internal_notes")
 }

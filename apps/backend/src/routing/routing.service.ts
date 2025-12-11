@@ -257,7 +257,7 @@ export class RoutingService {
     await this.prisma.conversation.update({
       where: { id: conversationId },
       data: {
-        assignedToUserId: assignedUserId,
+        assignedToId: assignedUserId,
         assignedToTeamId: rule.assignToTeamId,
       },
     });
@@ -286,13 +286,13 @@ export class RoutingService {
     // Simple round-robin: get member with least recent conversation assignment
     const lastAssignments = await this.prisma.conversation.findMany({
       where: {
-        assignedToUserId: { in: members.map((m) => m.userId) },
+        assignedToId: { in: members.map((m) => m.userId) },
       },
       orderBy: { updatedAt: 'desc' },
-      distinct: ['assignedToUserId'],
+      distinct: ['assignedToId'],
     });
 
-    const assignmentMap = new Map(lastAssignments.map((c) => [c.assignedToUserId, c.updatedAt]));
+    const assignmentMap = new Map(lastAssignments.map((c) => [c.assignedToId, c.updatedAt]));
 
     // Find member with oldest assignment (or never assigned)
     let selectedMember = members[0];

@@ -304,7 +304,7 @@ export class CampaignsService {
 
         // TODO: Send actual WhatsApp message via WhatsApp service
         // For now, just log
-        this.logger.log(`Would send to ${contact.phoneNumber}: ${message}`);
+        this.logger.log(`Would send to ${contact.phone}: ${message}`);
 
         // Simulate sending delay
         await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -358,7 +358,7 @@ export class CampaignsService {
       select: {
         id: true,
         name: true,
-        phoneNumber: true,
+        phone: true,
         email: true,
       },
     });
