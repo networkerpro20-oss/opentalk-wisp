@@ -9,8 +9,11 @@ import Link from 'next/link';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊' },
+  { name: 'Analytics', href: '/dashboard/analytics', icon: '📈' },
   { name: 'Contactos', href: '/dashboard/contacts', icon: '👥' },
   { name: 'Conversaciones', href: '/dashboard/conversations', icon: '💬' },
+  { name: 'Deals', href: '/dashboard/deals', icon: '💰' },
+  { name: 'Flujos', href: '/dashboard/flows', icon: '🔄' },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: '📱' },
   { name: 'Equipos', href: '/dashboard/teams', icon: '👨‍👩‍👧‍👦' },
   { name: 'Usuarios', href: '/dashboard/users', icon: '👤' },
