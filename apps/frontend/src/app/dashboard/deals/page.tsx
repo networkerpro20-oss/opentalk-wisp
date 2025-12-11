@@ -248,7 +248,7 @@ export default function DealsPage() {
                   onAddDeal={() => handleAddDeal(stage.id)}
                   onEditDeal={handleEditDeal}
                   onDeleteDeal={handleDeleteDeal}
-                  onDealClick={(deal) => console.log('Deal clicked:', deal)}
+                  onDealClick={(deal) => {}}
                 />
               ))}
             </div>
