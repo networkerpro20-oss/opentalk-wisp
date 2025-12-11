@@ -22,6 +22,9 @@ import { QueuesModule } from './queues/queues.module';
 import { TeamsModule } from './teams/teams.module';
 import { RoutingModule } from './routing/routing.module';
 import { PresenceModule } from './presence/presence.module';
+import { QuickRepliesModule } from './quick-replies/quick-replies.module';
+import { InternalNotesModule } from './internal-notes/internal-notes.module';
+import { TagsModule } from './tags/tags.module';
 
 @Module({
   imports: [
@@ -62,6 +65,9 @@ import { PresenceModule } from './presence/presence.module';
     TeamsModule,
     RoutingModule,
     PresenceModule,
+    QuickRepliesModule,
+    InternalNotesModule,
+    TagsModule,
   ],
 })
 export class AppModule {}

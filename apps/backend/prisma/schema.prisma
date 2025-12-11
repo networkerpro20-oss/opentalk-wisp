@@ -240,6 +240,7 @@ model Conversation {
   // Relaciones
   messages Message[]
   internalNotes InternalNote[]
+  tags ConversationTag[]
   
   @@index([organizationId])
   @@index([contactId])
@@ -448,6 +449,7 @@ model Tag {
   
   // Relaciones
   contacts  ContactTag[]
+  conversations ConversationTag[]
   
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -465,6 +467,19 @@ model ContactTag {
   
   @@id([contactId, tagId])
   @@map("contact_tags")
+}
+
+model ConversationTag {
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  tagId     String
+  tag       Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@id([conversationId, tagId])
+  @@map("conversation_tags")
 }
 
 model Activity {

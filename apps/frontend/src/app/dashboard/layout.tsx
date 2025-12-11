@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Contactos', href: '/dashboard/contacts', icon: '👥' },
   { name: 'Conversaciones', href: '/dashboard/conversations', icon: '💬' },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: '📱' },
+  { name: 'Equipos', href: '/dashboard/teams', icon: '👨‍👩‍👧‍👦' },
   { name: 'Usuarios', href: '/dashboard/users', icon: '👤' },
 ];
 
