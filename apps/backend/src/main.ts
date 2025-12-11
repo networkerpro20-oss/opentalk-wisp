@@ -40,6 +40,9 @@ async function bootstrap() {
     allowedOrigins.push(frontendUrl);
   }
   
+  // Permitir cualquier subdominio de vercel.app en desarrollo/producción
+  const vercelPattern = /^https:\/\/.*\.vercel\.app$/;
+  
   console.log('🔧 CORS permitidos:', allowedOrigins);
   console.log('🌐 FRONTEND_URL configurada:', frontendUrl);
   
@@ -50,6 +53,10 @@ async function bootstrap() {
       
       // Verificar si el origin está en la lista permitida
       if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else if (vercelPattern.test(origin)) {
+        // Permitir cualquier subdominio de vercel.app
+        console.log('✅ Origin Vercel permitido:', origin);
         callback(null, true);
       } else {
         console.warn('⚠️ Origin bloqueado:', origin);

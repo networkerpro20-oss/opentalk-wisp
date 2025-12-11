@@ -29,11 +29,11 @@ interface WAConnection {
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
   private connections: Map<string, WAConnection> = new Map();
-  // Use persistent volume in Railway, /tmp in other production, local in dev
+  // Use persistent volume in Railway, /tmp in legacy systems, local in dev
   private readonly authDir = process.env.RAILWAY_ENVIRONMENT 
     ? join('/app', 'wa-sessions')  // Railway persistent volume
     : process.env.NODE_ENV === 'production'
-    ? join('/tmp', 'wa-auth')      // Render/other (ephemeral)
+    ? join('/tmp', 'wa-auth')      // Other platforms (ephemeral - not recommended)
     : join(process.cwd(), 'wa-auth'); // Development
 
   constructor(private prisma: PrismaService) {
