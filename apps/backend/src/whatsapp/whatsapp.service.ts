@@ -29,16 +29,23 @@ interface WAConnection {
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
   private connections: Map<string, WAConnection> = new Map();
-  private readonly authDir = join(process.cwd(), 'wa-auth');
+  // Use /tmp directory for Render ephemeral filesystem
+  private readonly authDir = process.env.NODE_ENV === 'production' 
+    ? join('/tmp', 'wa-auth')
+    : join(process.cwd(), 'wa-auth');
 
   constructor(private prisma: PrismaService) {
-    // Crear directorio de auth si no existe (solo en entornos con filesystem)
+    // Crear directorio de auth si no existe
     try {
       if (!fs.existsSync(this.authDir)) {
         fs.mkdirSync(this.authDir, { recursive: true });
+        this.logger.log(`Created auth directory at: ${this.authDir}`);
+      } else {
+        this.logger.log(`Using existing auth directory: ${this.authDir}`);
       }
     } catch (error) {
-      this.logger.warn('Cannot create auth directory (serverless environment?)', error.message);
+      this.logger.error(`Failed to create auth directory: ${error.message}`);
+      this.logger.warn('WhatsApp connections may not persist across restarts');
     }
   }
 
@@ -386,10 +393,52 @@ export class WhatsappService {
     };
   }
 
+  getServiceHealth() {
+    const connections = Array.from(this.connections.entries()).map(([id, conn]) => ({
+      instanceId: id,
+      status: conn.status,
+      hasQR: !!conn.qr,
+    }));
+
+    // Check if auth directory is writable
+    let canWrite = false;
+    try {
+      const testFile = join(this.authDir, '.write-test');
+      fs.writeFileSync(testFile, 'test');
+      fs.unlinkSync(testFile);
+      canWrite = true;
+    } catch (error) {
+      this.logger.warn(`Auth directory is not writable: ${error.message}`);
+    }
+
+    return {
+      service: 'whatsapp',
+      status: 'running',
+      authDirectory: this.authDir,
+      authDirectoryExists: fs.existsSync(this.authDir),
+      authDirectoryWritable: canWrite,
+      activeConnections: this.connections.size,
+      connections,
+      environment: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   private async initializeConnection(instanceId: string, organizationId: string) {
     const authPath = join(this.authDir, instanceId);
-    if (!fs.existsSync(authPath)) {
-      fs.mkdirSync(authPath, { recursive: true });
+    
+    this.logger.log(`Initializing WhatsApp connection for instance ${instanceId}`);
+    this.logger.log(`Auth path: ${authPath}`);
+    
+    try {
+      // Create instance auth directory
+      if (!fs.existsSync(authPath)) {
+        fs.mkdirSync(authPath, { recursive: true });
+        this.logger.log(`Created auth path: ${authPath}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to create auth directory: ${error.message}`);
+      throw new Error(`Cannot initialize WhatsApp: ${error.message}`);
     }
 
     try {
@@ -485,13 +534,19 @@ export class WhatsappService {
 
         // Desconexión
         if (connection === 'close') {
-          const shouldReconnect =
-            (lastDisconnect?.error as Boom)?.output?.statusCode !==
-            DisconnectReason.loggedOut;
+          const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+
+          this.logger.log(`Connection closed for instance ${instanceId}. Status code: ${statusCode}, Should reconnect: ${shouldReconnect}`);
 
           if (shouldReconnect) {
-            this.logger.log(`Reconnecting instance ${instanceId}...`);
-            setTimeout(() => this.initializeConnection(instanceId, organizationId), 3000);
+            this.logger.log(`Reconnecting instance ${instanceId} in 5 seconds...`);
+            setTimeout(() => {
+              this.logger.log(`Attempting reconnection for instance ${instanceId}`);
+              this.initializeConnection(instanceId, organizationId).catch(err => {
+                this.logger.error(`Reconnection failed for ${instanceId}: ${err.message}`);
+              });
+            }, 5000);
           } else {
             this.connections.delete(instanceId);
             await this.prisma.whatsAppInstance.update({

@@ -49,6 +49,12 @@ export class WhatsappController {
     return this.whatsappService.getQRCode(req.user.organizationId, id);
   }
 
+  @Get('health')
+  @ApiOperation({ summary: 'Check WhatsApp service health' })
+  getHealth() {
+    return this.whatsappService.getServiceHealth();
+  }
+
   @Delete('instances/:id')
   @ApiOperation({ summary: 'Delete a WhatsApp instance' })
   deleteInstance(@Req() req: any, @Param('id') id: string) {
