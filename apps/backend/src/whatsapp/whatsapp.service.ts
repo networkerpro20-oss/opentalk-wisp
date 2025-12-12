@@ -461,8 +461,8 @@ export class WhatsappService {
         },
         logger: pino({ level: 'silent' }), // Reduce noise in Railway logs
         printQRInTerminal: false,
-        // CLAVE: Browser string que WhatsApp acepta sin bloqueos
-        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+        // CLAVE: Usar browser string oficial de Baileys (más confiable)
+        browser: Browsers.baileys('Chrome'),
         // Timeouts aumentados para evitar desconexiones
         connectTimeoutMs: 60000,
         keepAliveIntervalMs: 10000,
@@ -560,7 +560,17 @@ export class WhatsappService {
           // MANEJO ESPECÍFICO DEL ERROR 401 Y CONFLICTOS
           if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
             this.logger.error(`❌ ERROR CRÍTICO: Sesión corrupta o cerrada (${statusCode})`);
-            this.logger.error(`💡 Solución: Elimina la carpeta "${authPath}" desde Railway y vuelve a generar QR`);
+            this.logger.error(`🧹 AUTO-LIMPIANDO sesión corrupta: ${authPath}`);
+            
+            // AUTO-LIMPIAR sesión corrupta
+            try {
+              if (fs.existsSync(authPath)) {
+                fs.rmSync(authPath, { recursive: true, force: true });
+                this.logger.log(`✅ Sesión limpiada exitosamente: ${authPath}`);
+              }
+            } catch (cleanError) {
+              this.logger.error(`❌ Error limpiando sesión: ${cleanError.message}`);
+            }
             
             // Limpiar conexión y actualizar BD
             this.connections.delete(instanceId);
@@ -572,8 +582,7 @@ export class WhatsappService {
               },
             });
             
-            // NO reconectar automáticamente para evitar bucles infinitos
-            this.logger.warn(`⛔ No auto-reconnecting instance ${instanceId} to prevent infinite loops`);
+            this.logger.warn(`💡 Genera un nuevo QR desde el frontend para reconectar`);
             
           } else if (shouldReconnect) {
             this.logger.log(`🔄 Reconnecting instance ${instanceId} in 5 seconds...`);
