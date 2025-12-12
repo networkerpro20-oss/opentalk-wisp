@@ -456,16 +456,22 @@ export class WhatsappService {
           creds: state.creds,
           keys: makeCacheableSignalKeyStore(state.keys, undefined as any),
         },
-        printQRInTerminal: false, // Reducir uso de memoria en logs
+        printQRInTerminal: false,
         browser: Browsers.ubuntu('OpenTalkWisp'),
-        defaultQueryTimeoutMs: 60000, // Aumentado a 60s para dar más tiempo
+        defaultQueryTimeoutMs: 60000,
         connectTimeoutMs: 60000,
         keepAliveIntervalMs: 30000,
-        qrTimeout: 60000, // QR timeout aumentado a 60 segundos
-        msgRetryCounterCache: undefined, // Reducir cache
+        qrTimeout: 60000,
+        msgRetryCounterCache: undefined,
         getMessage: async (key) => {
           return { conversation: '' };
         },
+        // Optimizaciones de memoria para Railway
+        syncFullHistory: false, // No sincronizar historial completo
+        markOnlineOnConnect: true,
+        fireInitQueries: false, // Reducir queries iniciales
+        emitOwnEvents: false, // Reducir eventos emitidos
+        generateHighQualityLinkPreview: false, // Reducir procesamiento
       });
 
       // Guardar conexión inicial
