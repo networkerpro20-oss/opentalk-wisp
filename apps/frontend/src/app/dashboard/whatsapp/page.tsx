@@ -30,6 +30,17 @@ export default function WhatsAppPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: whatsappAPI.deleteInstance,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-instances'] });
+      toast.success('Instancia eliminada correctamente');
+    },
+    onError: () => {
+      toast.error('Error al eliminar instancia');
+    },
+  });
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (newInstanceName.trim()) {
@@ -64,8 +75,23 @@ export default function WhatsAppPage() {
       {/* Instances Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {instances?.map((instance: any) => (
-          <div key={instance.id} className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-start justify-between mb-4">
+          <div key={instance.id} className="bg-white rounded-lg shadow p-6 relative">
+            {/* Delete Button */}
+            <button
+              onClick={() => {
+                if (confirm(`¿Eliminar la instancia "${instance.name}"?`)) {
+                  deleteMutation.mutate(instance.id);
+                }
+              }}
+              className="absolute top-2 right-2 text-red-600 hover:text-red-800 p-2"
+              title="Eliminar instancia"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+
+            <div className="flex items-start justify-between mb-4 pr-8">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{instance.name}</h3>
                 {instance.phone && (

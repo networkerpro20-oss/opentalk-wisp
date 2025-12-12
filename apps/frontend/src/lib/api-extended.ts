@@ -85,4 +85,9 @@ export const whatsappAPI = {
     const { data } = await api.post('/whatsapp/send-media', mediaData);
     return data;
   },
+
+  deleteInstance: async (id: string) => {
+    const { data} = await api.delete(`/whatsapp/instances/${id}`);
+    return data;
+  },
 };
