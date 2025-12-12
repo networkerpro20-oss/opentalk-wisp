@@ -13,6 +13,7 @@ import { Boom } from '@hapi/boom';
 import { join } from 'path';
 import * as fs from 'fs';
 import * as QRCode from 'qrcode';
+import pino from 'pino';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWhatsAppInstanceDto } from './dto/create-whatsapp-instance.dto';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -432,46 +433,52 @@ export class WhatsappService {
   private async initializeConnection(instanceId: string, organizationId: string) {
     const authPath = join(this.authDir, instanceId);
     
-    this.logger.log(`Initializing WhatsApp connection for instance ${instanceId}`);
-    this.logger.log(`Auth path: ${authPath}`);
+    this.logger.log(`🔄 Initializing WhatsApp connection for instance ${instanceId}`);
+    this.logger.log(`📁 Auth path: ${authPath}`);
     
     try {
       // Create instance auth directory
       if (!fs.existsSync(authPath)) {
         fs.mkdirSync(authPath, { recursive: true });
-        this.logger.log(`Created auth path: ${authPath}`);
+        this.logger.log(`✅ Created auth path: ${authPath}`);
       }
     } catch (error) {
-      this.logger.error(`Failed to create auth directory: ${error.message}`);
+      this.logger.error(`❌ Failed to create auth directory: ${error.message}`);
       throw new Error(`Cannot initialize WhatsApp: ${error.message}`);
     }
 
     try {
       const { state, saveCreds } = await useMultiFileAuthState(authPath);
-      const { version } = await fetchLatestBaileysVersion();
+      const { version, isLatest } = await fetchLatestBaileysVersion();
+      
+      this.logger.log(`📱 Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
       const socket = makeWASocket({
         version,
         auth: {
           creds: state.creds,
-          keys: makeCacheableSignalKeyStore(state.keys, undefined as any),
+          keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' })),
         },
+        logger: pino({ level: 'silent' }), // Reduce noise in Railway logs
         printQRInTerminal: false,
-        browser: Browsers.ubuntu('OpenTalkWisp'),
-        defaultQueryTimeoutMs: 60000,
+        // CLAVE: Browser string que WhatsApp acepta sin bloqueos
+        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+        // Timeouts aumentados para evitar desconexiones
         connectTimeoutMs: 60000,
-        keepAliveIntervalMs: 30000,
+        keepAliveIntervalMs: 10000,
+        defaultQueryTimeoutMs: 60000,
         qrTimeout: 60000,
+        emitOwnEvents: true,
+        retryRequestDelayMs: 250,
         msgRetryCounterCache: undefined,
         getMessage: async (key) => {
           return { conversation: '' };
         },
         // Optimizaciones de memoria para Railway
-        syncFullHistory: false, // No sincronizar historial completo
+        syncFullHistory: false,
         markOnlineOnConnect: true,
-        fireInitQueries: false, // Reducir queries iniciales
-        emitOwnEvents: false, // Reducir eventos emitidos
-        generateHighQualityLinkPreview: false, // Reducir procesamiento
+        fireInitQueries: false,
+        generateHighQualityLinkPreview: false,
       });
 
       // Guardar conexión inicial
@@ -484,7 +491,7 @@ export class WhatsappService {
       socket.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        this.logger.log(`Connection update for instance ${instanceId}:`, {
+        this.logger.log(`🔔 Connection update for instance ${instanceId}:`, {
           connection,
           hasQR: !!qr,
           lastDisconnect: lastDisconnect?.error?.message,
@@ -514,9 +521,9 @@ export class WhatsappService {
               },
             });
 
-            this.logger.log(`QR Code generated for instance ${instanceId} (valid for ~40 seconds)`);
+            this.logger.log(`📱 QR Code generated for instance ${instanceId} (valid for ~40 seconds)`);
           } catch (error) {
-            this.logger.error(`Error generating QR code: ${error.message}`);
+            this.logger.error(`❌ Error generating QR code: ${error.message}`);
           }
         }
 
@@ -525,7 +532,7 @@ export class WhatsappService {
           this.connections.set(instanceId, {
             socket,
             status: WhatsAppStatus.CONNECTED,
-            qr: undefined, // Limpiar QR
+            qr: undefined,
           });
 
           const phone = socket.user?.id?.split(':')[0];
@@ -536,7 +543,7 @@ export class WhatsappService {
               status: WhatsAppStatus.CONNECTED,
               phone,
               connectedAt: new Date(),
-              qrCode: null, // Limpiar QR de BD
+              qrCode: null,
             },
           });
 
@@ -548,14 +555,32 @@ export class WhatsappService {
           const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
           const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-          this.logger.log(`Connection closed for instance ${instanceId}. Status code: ${statusCode}, Should reconnect: ${shouldReconnect}`);
+          this.logger.log(`⚠️  Connection closed for instance ${instanceId}. Status code: ${statusCode}, Should reconnect: ${shouldReconnect}`);
 
-          if (shouldReconnect) {
-            this.logger.log(`Reconnecting instance ${instanceId} in 5 seconds...`);
+          // MANEJO ESPECÍFICO DEL ERROR 401 Y CONFLICTOS
+          if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+            this.logger.error(`❌ ERROR CRÍTICO: Sesión corrupta o cerrada (${statusCode})`);
+            this.logger.error(`💡 Solución: Elimina la carpeta "${authPath}" desde Railway y vuelve a generar QR`);
+            
+            // Limpiar conexión y actualizar BD
+            this.connections.delete(instanceId);
+            await this.prisma.whatsAppInstance.update({
+              where: { id: instanceId },
+              data: {
+                status: WhatsAppStatus.DISCONNECTED,
+                qrCode: null,
+              },
+            });
+            
+            // NO reconectar automáticamente para evitar bucles infinitos
+            this.logger.warn(`⛔ No auto-reconnecting instance ${instanceId} to prevent infinite loops`);
+            
+          } else if (shouldReconnect) {
+            this.logger.log(`🔄 Reconnecting instance ${instanceId} in 5 seconds...`);
             setTimeout(() => {
-              this.logger.log(`Attempting reconnection for instance ${instanceId}`);
+              this.logger.log(`🔌 Attempting reconnection for instance ${instanceId}`);
               this.initializeConnection(instanceId, organizationId).catch(err => {
-                this.logger.error(`Reconnection failed for ${instanceId}: ${err.message}`);
+                this.logger.error(`❌ Reconnection failed for ${instanceId}: ${err.message}`);
               });
             }, 5000);
           } else {
@@ -567,7 +592,7 @@ export class WhatsappService {
                 qrCode: null,
               },
             });
-            this.logger.log(`WhatsApp instance ${instanceId} logged out`);
+            this.logger.log(`📴 WhatsApp instance ${instanceId} logged out`);
           }
         }
       });
@@ -585,7 +610,7 @@ export class WhatsappService {
       });
 
     } catch (error) {
-      this.logger.error(`Error initializing WhatsApp: ${error.message}`);
+      this.logger.error(`❌ Error initializing WhatsApp: ${error.message}`);
       await this.prisma.whatsAppInstance.update({
         where: { id: instanceId },
         data: { status: WhatsAppStatus.ERROR },
