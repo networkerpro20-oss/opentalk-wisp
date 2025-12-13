@@ -488,123 +488,185 @@ export class WhatsappService {
       });
 
       // Event: Actualización de conexión
-      socket.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update;
+     socket.ev.on('connection.update', async (update) => {
+  const { connection, lastDisconnect, qr } = update;
 
-        this.logger.log(`🔔 Connection update for instance ${instanceId}:`, {
-          connection,
-          hasQR: !!qr,
-          lastDisconnect: lastDisconnect?.error?.message,
-        });
+  // Extraemos info del error (si existe)
+  const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+  const errorMessage = (lastDisconnect?.error as Error)?.message ?? '';
 
-        // Actualizar QR code
-        if (qr) {
-          try {
-            // Convertir QR string a Data URL para que el frontend pueda mostrarlo
-            const qrDataURL = await QRCode.toDataURL(qr, {
-              width: 400,
-              margin: 2,
-              errorCorrectionLevel: 'M',
-            });
-            
-            this.connections.set(instanceId, {
-              socket,
-              qr: qrDataURL,
-              status: WhatsAppStatus.QR_CODE,
-            });
+  this.logger.log(`🔔 Connection update for instance ${instanceId}:`, {
+    connection,
+    hasQR: !!qr,
+    statusCode,
+    errorMessage,
+  });
 
-            await this.prisma.whatsAppInstance.update({
-              where: { id: instanceId },
-              data: {
-                status: WhatsAppStatus.QR_CODE,
-                qrCode: qrDataURL,
-              },
-            });
-
-            this.logger.log(`📱 QR Code generated for instance ${instanceId} (valid for ~40 seconds)`);
-          } catch (error) {
-            this.logger.error(`❌ Error generating QR code: ${error.message}`);
-          }
-        }
-
-        // Conexión exitosa
-        if (connection === 'open') {
-          this.connections.set(instanceId, {
-            socket,
-            status: WhatsAppStatus.CONNECTED,
-            qr: undefined,
-          });
-
-          const phone = socket.user?.id?.split(':')[0];
-
-          await this.prisma.whatsAppInstance.update({
-            where: { id: instanceId },
-            data: {
-              status: WhatsAppStatus.CONNECTED,
-              phone,
-              connectedAt: new Date(),
-              qrCode: null,
-            },
-          });
-
-          this.logger.log(`✅ WhatsApp instance ${instanceId} connected successfully! Phone: ${phone}`);
-        }
-
-        // Desconexión
-        if (connection === 'close') {
-          const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-
-          this.logger.log(`⚠️  Connection closed for instance ${instanceId}. Status code: ${statusCode}, Should reconnect: ${shouldReconnect}`);
-
-          // MANEJO ESPECÍFICO DEL ERROR 401 Y CONFLICTOS
-          if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
-            this.logger.error(`❌ ERROR CRÍTICO: Sesión corrupta o cerrada (${statusCode})`);
-            this.logger.error(`🧹 AUTO-LIMPIANDO sesión corrupta: ${authPath}`);
-            
-            // AUTO-LIMPIAR sesión corrupta
-            try {
-              if (fs.existsSync(authPath)) {
-                fs.rmSync(authPath, { recursive: true, force: true });
-                this.logger.log(`✅ Sesión limpiada exitosamente: ${authPath}`);
-              }
-            } catch (cleanError) {
-              this.logger.error(`❌ Error limpiando sesión: ${cleanError.message}`);
-            }
-            
-            // Limpiar conexión y actualizar BD
-            this.connections.delete(instanceId);
-            await this.prisma.whatsAppInstance.update({
-              where: { id: instanceId },
-              data: {
-                status: WhatsAppStatus.DISCONNECTED,
-                qrCode: null,
-              },
-            });
-            
-            this.logger.warn(`💡 Genera un nuevo QR desde el frontend para reconectar`);
-            
-          } else if (shouldReconnect) {
-            this.logger.log(`🔄 Reconnecting instance ${instanceId} in 5 seconds...`);
-            setTimeout(() => {
-              this.logger.log(`🔌 Attempting reconnection for instance ${instanceId}`);
-              this.initializeConnection(instanceId, organizationId).catch(err => {
-                this.logger.error(`❌ Reconnection failed for ${instanceId}: ${err.message}`);
-              });
-            }, 5000);
-          } else {
-            this.connections.delete(instanceId);
-            await this.prisma.whatsAppInstance.update({
-              where: { id: instanceId },
-              data: {
-                status: WhatsAppStatus.DISCONNECTED,
-                qrCode: null,
-              },
-            });
-            this.logger.log(`📴 WhatsApp instance ${instanceId} logged out`);
-          }
-        }
+  // 1) Manejo de QR
+  if (qr) {
+    try {
+      const qrDataURL = await QRCode.toDataURL(qr, {
+        width: 400,
+        margin: 2,
+        errorCorrectionLevel: 'M',
       });
+
+      this.connections.set(instanceId, {
+        socket,
+        qr: qrDataURL,
+        status: WhatsAppStatus.QR_CODE,
+      });
+
+      await this.prisma.whatsAppInstance.update({
+        where: { id: instanceId },
+        data: {
+          status: WhatsAppStatus.QR_CODE,
+          qrCode: qrDataURL,
+        },
+      });
+
+      this.logger.log(
+        `📱 QR Code generated for instance ${instanceId} (valid for ~40 seconds)`,
+      );
+    } catch (error) {
+      this.logger.error(`❌ Error generating QR code: ${error.message}`);
+    }
+  }
+
+  // 2) Conexión abierta OK
+  if (connection === 'open') {
+    this.connections.set(instanceId, {
+      socket,
+      status: WhatsAppStatus.CONNECTED,
+      qr: undefined,
+    });
+
+    const phone = socket.user?.id?.split(':')[0];
+
+    await this.prisma.whatsAppInstance.update({
+      where: { id: instanceId },
+      data: {
+        status: WhatsAppStatus.CONNECTED,
+        phone,
+        connectedAt: new Date(),
+        qrCode: null,
+      },
+    });
+
+    this.logger.log(
+      `✅ WhatsApp instance ${instanceId} connected successfully! Phone: ${phone}`,
+    );
+    return;
+  }
+
+  // 3) Desconexión
+  if (connection === 'close') {
+    // Detectar tipos de error
+    const isConflict = errorMessage.toLowerCase().includes('conflict');
+    const isLoggedOut =
+      statusCode === DisconnectReason.loggedOut || statusCode === 401;
+
+    this.logger.log(
+      `⚠️  Connection closed for instance ${instanceId}. Status code: ${statusCode}, isConflict: ${isConflict}, isLoggedOut: ${isLoggedOut}`,
+    );
+
+    // 3.1) Caso CONFLICT: NO borrar sesión, intentar reconectar
+    if (isConflict) {
+      this.logger.warn(
+        `🔁 Conflict detected for ${instanceId} (Stream Errored conflict). ` +
+          'Probablemente el número está abierto en otra sesión de WhatsApp Web o en otro cliente Baileys. ' +
+          'No se borrará la sesión; se intentará reconectar automáticamente.',
+      );
+
+      // Opcional: marcar estado "reconectando"
+      this.connections.set(instanceId, {
+        socket,
+        status: WhatsAppStatus.DISCONNECTED,
+        qr: undefined,
+      });
+
+      await this.prisma.whatsAppInstance.update({
+        where: { id: instanceId },
+        data: {
+          status: WhatsAppStatus.DISCONNECTED,
+          qrCode: null,
+        },
+      });
+
+      setTimeout(() => {
+        this.logger.log(`🔌 Attempting reconnection for instance ${instanceId} after conflict`);
+        this.initializeConnection(instanceId, organizationId).catch((err) => {
+          this.logger.error(
+            `❌ Reconnection after conflict failed for ${instanceId}: ${err.message}`,
+          );
+        });
+      }, 5000);
+
+      return;
+    }
+
+    // 3.2) Logout REAL: limpiar sesión y pedir nuevo QR
+    if (isLoggedOut) {
+      this.logger.error(
+        `❌ ERROR CRÍTICO: Sesión cerrada para ${instanceId} (status ${statusCode}). ` +
+          'Se limpiará la sesión y será necesario escanear un nuevo QR.',
+      );
+
+      try {
+        if (fs.existsSync(authPath)) {
+          fs.rmSync(authPath, { recursive: true, force: true });
+          this.logger.log(`✅ Sesión limpiada exitosamente: ${authPath}`);
+        }
+      } catch (cleanError) {
+        this.logger.error(
+          `❌ Error limpiando sesión de ${instanceId}: ${cleanError.message}`,
+        );
+      }
+
+      this.connections.delete(instanceId);
+
+      await this.prisma.whatsAppInstance.update({
+        where: { id: instanceId },
+        data: {
+          status: WhatsAppStatus.DISCONNECTED,
+          qrCode: null,
+        },
+      });
+
+      this.logger.warn(
+        `💡 Genera un nuevo QR desde el frontend para reconectar la instancia ${instanceId}`,
+      );
+      return;
+    }
+
+    // 3.3) Otros errores: aplicar lógica de reconexión estándar
+    const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+
+    if (shouldReconnect) {
+      this.logger.log(
+        `🔄 Reconnecting instance ${instanceId} in 5 seconds (statusCode: ${statusCode})...`,
+      );
+      setTimeout(() => {
+        this.logger.log(`🔌 Attempting reconnection for instance ${instanceId}`);
+        this.initializeConnection(instanceId, organizationId).catch((err) => {
+          this.logger.error(
+            `❌ Reconnection failed for ${instanceId}: ${err.message}`,
+          );
+        });
+      }, 5000);
+    } else {
+      this.connections.delete(instanceId);
+      await this.prisma.whatsAppInstance.update({
+        where: { id: instanceId },
+        data: {
+          status: WhatsAppStatus.DISCONNECTED,
+          qrCode: null,
+        },
+      });
+      this.logger.log(`📴 WhatsApp instance ${instanceId} logged out (no reconnect)`);
+    }
+  }
+});
 
       // Event: Guardar credenciales
       socket.ev.on('creds.update', saveCreds);
