@@ -173,15 +173,34 @@ export class WhatsappService {
       throw new Error('WhatsApp instance is not connected');
     }
 
+    // Verify WebSocket is actually open
+    const ws = (connection.socket as any).ws;
+    if (ws && ws.readyState !== 1) {
+      this.logger.warn(`WebSocket not open (readyState: ${ws?.readyState}), reconnecting...`);
+      connection.status = WhatsAppStatus.DISCONNECTED;
+      throw new Error('WhatsApp connection lost. Please reconnect the instance.');
+    }
+
     // Formatear número de teléfono
     const phoneNumber = sendDto.to.replace(/\D/g, '');
     const jid = `${phoneNumber}@s.whatsapp.net`;
+
+    this.logger.log(`Sending message to JID: ${jid} (original: ${sendDto.to})`);
 
     try {
       // Enviar mensaje
       const sent = await connection.socket.sendMessage(jid, {
         text: sendDto.message,
       });
+
+      this.logger.log(`Message sent result: ${JSON.stringify(sent?.key || 'no key')}`);
+
+      if (!sent?.key?.id) {
+        this.logger.error(`Message send returned no key ID - connection may be stale`);
+        // Mark connection as potentially broken
+        connection.status = WhatsAppStatus.DISCONNECTED;
+        throw new Error('Message send failed - no confirmation from WhatsApp. Try reconnecting the instance.');
+      }
 
       // Buscar o crear contacto
       let contact = await this.prisma.contact.findFirst({
