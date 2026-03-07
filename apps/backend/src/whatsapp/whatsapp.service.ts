@@ -181,8 +181,8 @@ export class WhatsappService {
       throw new Error('WhatsApp connection lost. Please reconnect the instance.');
     }
 
-    // Formatear número de teléfono
-    const phoneNumber = sendDto.to.replace(/\D/g, '');
+    // Formatear número de teléfono (remove non-digits and device suffix)
+    const phoneNumber = sendDto.to.replace(/\D/g, '').split(':')[0];
     const jid = `${phoneNumber}@s.whatsapp.net`;
 
     this.logger.log(`Sending message to JID: ${jid} (original: ${sendDto.to})`);
@@ -277,8 +277,8 @@ export class WhatsappService {
       throw new Error('WhatsApp instance is not connected');
     }
 
-    // Formatear número de teléfono
-    const phoneNumber = sendDto.to.replace(/\D/g, '');
+    // Formatear número de teléfono (remove non-digits and device suffix)
+    const phoneNumber = sendDto.to.replace(/\D/g, '').split(':')[0];
     const jid = `${phoneNumber}@s.whatsapp.net`;
 
     try {
@@ -724,7 +724,8 @@ export class WhatsappService {
     try {
       if (!msg.message || !msg.key || msg.key.fromMe) return;
 
-      const phoneNumber = msg.key.remoteJid?.split('@')[0];
+      const rawJid = msg.key.remoteJid?.split('@')[0] || '';
+      const phoneNumber = rawJid.split(':')[0]; // Remove device suffix if present
       if (!phoneNumber) return;
 
       // Buscar o crear contacto
