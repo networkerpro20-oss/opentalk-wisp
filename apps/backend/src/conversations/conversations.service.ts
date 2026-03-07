@@ -57,7 +57,7 @@ export class ConversationsService {
         where,
         skip,
         take,
-        orderBy: orderBy || { lastMessageAt: 'desc' },
+        orderBy: orderBy || { updatedAt: 'desc' },
         include: {
           contact: {
             select: {
@@ -82,6 +82,15 @@ export class ConversationsService {
               name: true,
               phone: true,
               status: true,
+            },
+          },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+            select: {
+              content: true,
+              createdAt: true,
+              direction: true,
             },
           },
           _count: {

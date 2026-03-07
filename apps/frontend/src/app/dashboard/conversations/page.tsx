@@ -98,14 +98,14 @@ export default function ConversationsPage() {
                       
                       {conversation.assignedTo && (
                         <span className="text-xs text-gray-500">
-                          👤 {conversation.assignedTo.name}
+                          👤 {conversation.assignedTo.firstName} {conversation.assignedTo.lastName}
                         </span>
                       )}
                     </div>
                     
-                    {conversation.lastMessage && (
+                    {conversation.messages?.[0]?.content && (
                       <p className="text-sm text-gray-600 truncate">
-                        {conversation.lastMessage}
+                        {conversation.messages[0].content}
                       </p>
                     )}
                   </div>
