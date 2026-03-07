@@ -181,9 +181,18 @@ export class WhatsappService {
       throw new Error('WhatsApp connection lost. Please reconnect the instance.');
     }
 
-    // Formatear número de teléfono (remove non-digits and device suffix)
-    const phoneNumber = sendDto.to.replace(/\D/g, '').split(':')[0];
-    const jid = `${phoneNumber}@s.whatsapp.net`;
+    // Build JID: handle both regular phone numbers and LID identifiers
+    let jid: string;
+    let phoneNumber: string;
+    if (sendDto.to.startsWith('lid:')) {
+      // LID (Linked Identity) - use @lid domain
+      phoneNumber = sendDto.to.replace('lid:', '');
+      jid = `${phoneNumber}@lid`;
+    } else {
+      // Regular phone number - use @s.whatsapp.net domain
+      phoneNumber = sendDto.to.replace(/\D/g, '').split(':')[0];
+      jid = `${phoneNumber}@s.whatsapp.net`;
+    }
 
     this.logger.log(`Sending message to JID: ${jid} (original: ${sendDto.to})`);
 
@@ -276,9 +285,16 @@ export class WhatsappService {
       throw new Error('WhatsApp instance is not connected');
     }
 
-    // Formatear número de teléfono (remove non-digits and device suffix)
-    const phoneNumber = sendDto.to.replace(/\D/g, '').split(':')[0];
-    const jid = `${phoneNumber}@s.whatsapp.net`;
+    // Build JID: handle both regular phone numbers and LID identifiers
+    let jid: string;
+    let phoneNumber: string;
+    if (sendDto.to.startsWith('lid:')) {
+      phoneNumber = sendDto.to.replace('lid:', '');
+      jid = `${phoneNumber}@lid`;
+    } else {
+      phoneNumber = sendDto.to.replace(/\D/g, '').split(':')[0];
+      jid = `${phoneNumber}@s.whatsapp.net`;
+    }
 
     try {
       let messageContent: any = {};
@@ -727,26 +743,33 @@ export class WhatsappService {
 
       this.logger.log(`📨 Incoming message - remoteJid: ${remoteJid}, pushName: ${msg.pushName || 'none'}, participant: ${msg.key.participant || 'none'}`);
 
-      // Only process individual WhatsApp messages (skip groups, broadcasts, LIDs)
-      if (!remoteJid.endsWith('@s.whatsapp.net')) {
-        this.logger.log(`⏭️ Skipping non-individual message from: ${remoteJid}`);
+      // Skip groups (@g.us) and status broadcasts (@broadcast)
+      if (remoteJid.endsWith('@g.us') || remoteJid.includes('@broadcast')) {
+        this.logger.log(`⏭️ Skipping group/broadcast message from: ${remoteJid}`);
         return;
       }
 
+      // Accept both @s.whatsapp.net (phone number) and @lid (linked identity)
+      const jidDomain = remoteJid.includes('@') ? remoteJid.split('@')[1] : '';
       const rawJid = remoteJid.split('@')[0];
       const phoneNumber = rawJid.split(':')[0]; // Remove device suffix if present
-      if (!phoneNumber || phoneNumber.length > 15) {
-        this.logger.warn(`⚠️ Invalid phone number extracted: "${phoneNumber}" from JID: ${remoteJid}`);
+
+      if (!phoneNumber || phoneNumber === 'status') {
+        this.logger.warn(`⚠️ Invalid phone extracted: "${phoneNumber}" from JID: ${remoteJid}`);
         return;
       }
 
-      this.logger.log(`📱 Extracted phone: ${phoneNumber} from JID: ${remoteJid}`);
+      // For @lid JIDs, prefix with "lid:" so we can reconstruct the correct JID when sending
+      const isLid = jidDomain === 'lid';
+      const storedPhone = isLid ? `lid:${phoneNumber}` : phoneNumber;
+
+      this.logger.log(`📱 Extracted phone: ${storedPhone} (domain: ${jidDomain}) from JID: ${remoteJid}`);
 
       // Buscar o crear contacto
       let contact = await this.prisma.contact.findFirst({
         where: {
           organizationId,
-          phone: phoneNumber,
+          phone: storedPhone,
         },
       });
 
@@ -755,7 +778,7 @@ export class WhatsappService {
         contact = await this.prisma.contact.create({
           data: {
             name: pushName,
-            phone: phoneNumber,
+            phone: storedPhone,
             organizationId,
           },
         });
