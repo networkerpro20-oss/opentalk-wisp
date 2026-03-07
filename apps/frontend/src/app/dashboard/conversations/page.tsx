@@ -103,9 +103,13 @@ export default function ConversationsPage() {
                       )}
                     </div>
                     
-                    {conversation.messages?.[0]?.content && (
+                    {conversation.messages?.[0] && (
                       <p className="text-sm text-gray-600 truncate">
-                        {conversation.messages[0].content}
+                        {conversation.messages[0].type === 'IMAGE' ? '📷 Imagen' :
+                         conversation.messages[0].type === 'VIDEO' ? '🎥 Video' :
+                         conversation.messages[0].type === 'AUDIO' ? '🎵 Audio' :
+                         conversation.messages[0].type === 'DOCUMENT' ? '📎 Documento' :
+                         conversation.messages[0].content}
                       </p>
                     )}
                   </div>

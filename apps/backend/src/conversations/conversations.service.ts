@@ -91,6 +91,7 @@ export class ConversationsService {
               content: true,
               createdAt: true,
               direction: true,
+              type: true,
             },
           },
           _count: {

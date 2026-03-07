@@ -822,6 +822,16 @@ export class WhatsappService {
         const loc = msg.message.locationMessage;
         content = `[Ubicación: ${loc.degreesLatitude}, ${loc.degreesLongitude}]`;
         messageType = 'LOCATION';
+      } else if (msg.message.stickerMessage) {
+        content = '[Sticker]';
+        messageType = 'IMAGE';
+        try {
+          const buffer = await downloadMediaMessage(msg as any, 'buffer', {});
+          const base64 = buffer.toString('base64');
+          mediaUrl = `data:image/webp;base64,${base64}`;
+        } catch (err) {
+          this.logger.error(`Error downloading sticker: ${err.message}`);
+        }
       } else if (msg.message.contactMessage) {
         content = `[Contacto: ${msg.message.contactMessage.displayName || 'Sin nombre'}]`;
         messageType = 'CONTACT';

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { conversationsAPI, whatsappAPI } from '@/lib/api-extended';
 import { connectSocket, getSocket } from '@/lib/socket';
 import { toast } from 'sonner';
-import { Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
+import { Paperclip, ChevronDown, ChevronUp, FileText, Download } from 'lucide-react';
 import { InternalNotesPanel } from '@/components/internal-notes/InternalNotesPanel';
 import { AISuggestions } from '@/components/ai/AISuggestions';
 import MediaUpload from '@/components/MediaUpload';
@@ -178,7 +178,34 @@ export default function ConversationDetailPage({ params }: { params: { id: strin
                   ? 'bg-indigo-600 text-white'
                   : 'bg-gray-100 text-gray-900'
               }`}>
-                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                {msg.type === 'IMAGE' && msg.mediaUrl ? (
+                  <img
+                    src={msg.mediaUrl}
+                    alt={msg.content || 'Imagen'}
+                    className="max-w-xs rounded-lg cursor-pointer"
+                    onClick={() => window.open(msg.mediaUrl, '_blank')}
+                  />
+                ) : msg.type === 'VIDEO' && msg.mediaUrl ? (
+                  <video controls className="max-w-xs rounded-lg" preload="metadata">
+                    <source src={msg.mediaUrl} />
+                  </video>
+                ) : msg.type === 'AUDIO' && msg.mediaUrl ? (
+                  <audio controls src={msg.mediaUrl} className="max-w-[250px]" preload="metadata" />
+                ) : msg.type === 'DOCUMENT' && msg.mediaUrl ? (
+                  <a
+                    href={msg.mediaUrl}
+                    download={msg.content || 'documento'}
+                    className={`flex items-center gap-2 text-sm underline ${
+                      msg.direction === 'OUTBOUND' ? 'text-indigo-100' : 'text-indigo-600'
+                    }`}
+                  >
+                    <FileText size={18} />
+                    <span>{msg.content || 'Documento'}</span>
+                    <Download size={14} />
+                  </a>
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                )}
                 <div className={`mt-1 text-xs ${
                   msg.direction === 'OUTBOUND' ? 'text-indigo-200' : 'text-gray-500'
                 }`}>
