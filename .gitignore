@@ -74,7 +74,11 @@ pids/
 
 # Production
 .env.production.local
+.env.production
 temp/
+
+# Render config with credentials
+render-config.json
 
 # Docker
 docker-compose.override.yml

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import {
   LineChart,
   Line,
@@ -30,52 +31,33 @@ import {
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState('30'); // days
 
-  // Fetch analytics data
+  // Fetch analytics data from API
   const { data: analytics, isLoading } = useQuery({
     queryKey: ['analytics', dateRange],
     queryFn: async () => {
-      // TODO: Replace with actual API call
+      const days = parseInt(dateRange, 10);
+      const [overview, conversationsByDay, dealsByStage, topAgents, channels] =
+        await Promise.all([
+          api.get('/analytics/overview', { params: { days } }).then((r) => r.data),
+          api.get('/analytics/conversations-by-day', { params: { days } }).then((r) => r.data),
+          api.get('/analytics/deals-by-stage').then((r) => r.data),
+          api.get('/analytics/top-agents', { params: { days } }).then((r) => r.data),
+          api.get('/analytics/channels').then((r) => r.data),
+        ]);
+
       return {
         kpis: {
-          totalContacts: 1247,
-          activeConversations: 89,
-          totalDeals: 156,
-          totalRevenue: 234500,
-          growthRate: 12.5,
-          conversionRate: 3.2,
+          totalContacts: overview.totalContacts,
+          activeConversations: overview.activeConversations,
+          totalDeals: overview.totalDeals,
+          totalRevenue: overview.totalRevenue,
+          growthRate: overview.newContacts > 0 ? Math.round((overview.newContacts / Math.max(overview.totalContacts - overview.newContacts, 1)) * 100 * 10) / 10 : 0,
+          conversionRate: overview.conversionRate,
         },
-        conversationsByDay: [
-          { date: '01 Dic', conversations: 45 },
-          { date: '02 Dic', conversations: 52 },
-          { date: '03 Dic', conversations: 48 },
-          { date: '04 Dic', conversations: 61 },
-          { date: '05 Dic', conversations: 55 },
-          { date: '06 Dic', conversations: 67 },
-          { date: '07 Dic', conversations: 71 },
-        ],
-        dealsByStage: [
-          { stage: 'Lead', deals: 45, value: 67500 },
-          { stage: 'Qualified', deals: 32, value: 96000 },
-          { stage: 'Proposal', deals: 28, value: 112000 },
-          { stage: 'Negotiation', deals: 18, value: 90000 },
-          { stage: 'Won', deals: 12, value: 72000 },
-        ],
-        channelDistribution: [
-          { name: 'WhatsApp', value: 65 },
-          { name: 'Email', value: 20 },
-          { name: 'Web Chat', value: 15 },
-        ],
-        topAgents: [
-          { name: 'Miguel Domínguez', conversations: 125, deals: 24, revenue: 72000 },
-          { name: 'Ana García', conversations: 98, deals: 19, revenue: 57000 },
-          { name: 'Carlos Ruiz', conversations: 87, deals: 15, revenue: 45000 },
-          { name: 'María López', conversations: 76, deals: 12, revenue: 36000 },
-        ],
-        responseTime: {
-          average: 4.2, // minutes
-          median: 2.5,
-          percentile90: 8.5,
-        },
+        conversationsByDay,
+        dealsByStage,
+        channelDistribution: channels,
+        topAgents,
       };
     },
   });
@@ -255,7 +237,7 @@ export default function AnalyticsPage() {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {analytics?.channelDistribution?.map((entry, index) => (
+                {analytics?.channelDistribution?.map((entry: any, index: number) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}
@@ -267,54 +249,48 @@ export default function AnalyticsPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Response Time */}
+        {/* Summary Stats */}
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Tiempo de Respuesta
+            Resumen
           </h3>
           <div className="space-y-6">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600">Promedio</span>
-                <span className="text-2xl font-bold text-blue-600">
-                  {analytics?.responseTime?.average ?? 0} min
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full"
-                  style={{ width: '60%' }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600">Mediana</span>
+                <span className="text-gray-600">Deals Ganados</span>
                 <span className="text-2xl font-bold text-green-600">
-                  {analytics?.responseTime?.median ?? 0} min
+                  {analytics?.kpis?.conversionRate ?? 0}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-green-600 h-2 rounded-full"
-                  style={{ width: '40%' }}
+                  style={{ width: `${Math.min(analytics?.kpis?.conversionRate ?? 0, 100)}%` }}
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-600">Percentil 90</span>
-                <span className="text-2xl font-bold text-orange-600">
-                  {analytics?.responseTime?.percentile90 ?? 0} min
+                <span className="text-gray-600">Contactos Nuevos</span>
+                <span className="text-2xl font-bold text-blue-600">
+                  +{analytics?.kpis?.growthRate ?? 0}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
-                  className="bg-orange-600 h-2 rounded-full"
-                  style={{ width: '85%' }}
+                  className="bg-blue-600 h-2 rounded-full"
+                  style={{ width: `${Math.min(analytics?.kpis?.growthRate ?? 0, 100)}%` }}
                 />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-600">Conversaciones Activas</span>
+                <span className="text-2xl font-bold text-purple-600">
+                  {analytics?.kpis?.activeConversations ?? 0}
+                </span>
               </div>
             </div>
           </div>
@@ -345,7 +321,7 @@ export default function AnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {analytics?.topAgents?.map((agent, index) => (
+              {analytics?.topAgents?.map((agent: any, index: number) => (
                 <tr key={index} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">

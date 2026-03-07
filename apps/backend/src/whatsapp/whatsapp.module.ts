@@ -1,10 +1,19 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bull';
 import { WhatsappService } from './whatsapp.service';
 import { WhatsappController } from './whatsapp.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { EventsModule } from '../events/events.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [
+    PrismaModule,
+    EventsModule,
+    BullModule.registerQueue(
+      { name: 'flow-execution' },
+      { name: 'ai-processing' },
+    ),
+  ],
   controllers: [WhatsappController],
   providers: [WhatsappService],
   exports: [WhatsappService],

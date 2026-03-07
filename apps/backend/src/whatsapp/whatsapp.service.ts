@@ -15,10 +15,13 @@ import * as fs from 'fs';
 import * as QRCode from 'qrcode';
 import pino from 'pino';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventsGateway } from '../events/events.gateway';
 import { CreateWhatsAppInstanceDto } from './dto/create-whatsapp-instance.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { SendMediaDto, MediaType } from './dto/send-media.dto';
 import { WhatsAppStatus, MessageDirection, MessageType, MessageStatus } from '@prisma/client';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 interface WAConnection {
   socket: WASocket;
@@ -37,7 +40,12 @@ export class WhatsappService {
     ? join('/tmp', 'wa-auth')      // Other platforms (ephemeral - not recommended)
     : join(process.cwd(), 'wa-auth'); // Development
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private eventsGateway: EventsGateway,
+    @InjectQueue('flow-execution') private flowQueue: Queue,
+    @InjectQueue('ai-processing') private aiQueue: Queue,
+  ) {
     // Crear directorio de auth si no existe
     try {
       if (!fs.existsSync(this.authDir)) {
@@ -695,7 +703,7 @@ export class WhatsappService {
     msg: proto.IWebMessageInfo,
   ) {
     try {
-      if (!msg.message || msg.key.fromMe) return;
+      if (!msg.message || !msg.key || msg.key.fromMe) return;
 
       const phoneNumber = msg.key.remoteJid?.split('@')[0];
       if (!phoneNumber) return;
@@ -754,7 +762,7 @@ export class WhatsappService {
         messageType = 'IMAGE';
         // Descargar y guardar imagen
         try {
-          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          const buffer = await downloadMediaMessage(msg as any, 'buffer', {});
           const base64 = buffer.toString('base64');
           mediaUrl = `data:image/jpeg;base64,${base64}`;
         } catch (err) {
@@ -764,7 +772,7 @@ export class WhatsappService {
         content = msg.message.videoMessage.caption || '[Video]';
         messageType = 'VIDEO';
         try {
-          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          const buffer = await downloadMediaMessage(msg as any, 'buffer', {});
           const base64 = buffer.toString('base64');
           mediaUrl = `data:video/mp4;base64,${base64}`;
         } catch (err) {
@@ -774,7 +782,7 @@ export class WhatsappService {
         content = '[Audio]';
         messageType = 'AUDIO';
         try {
-          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          const buffer = await downloadMediaMessage(msg as any, 'buffer', {});
           const base64 = buffer.toString('base64');
           mediaUrl = `data:audio/mp4;base64,${base64}`;
         } catch (err) {
@@ -784,7 +792,7 @@ export class WhatsappService {
         content = msg.message.documentMessage.caption || `[Documento: ${msg.message.documentMessage.fileName || 'archivo'}]`;
         messageType = 'DOCUMENT';
         try {
-          const buffer = await downloadMediaMessage(msg, 'buffer', {});
+          const buffer = await downloadMediaMessage(msg as any, 'buffer', {});
           const base64 = buffer.toString('base64');
           const mimeType = msg.message.documentMessage.mimetype || 'application/octet-stream';
           mediaUrl = `data:${mimeType};base64,${base64}`;
@@ -814,7 +822,7 @@ export class WhatsappService {
           conversationId: conversation.id,
           contactId: contact.id,
           whatsappInstanceId: instanceId,
-          whatsappMessageId: msg.key.id,
+          whatsappMessageId: msg.key.id || '',
           organizationId,
         },
       });
@@ -827,9 +835,29 @@ export class WhatsappService {
 
       this.logger.log(`Message received from ${phoneNumber}`);
 
-      // TODO: Ejecutar flows automáticamente usando eventos
-      // Por ahora comentado para evitar dependencias circulares
-      // Se implementará con EventEmitter o Bull Queue
+      // Emit real-time events via WebSocket
+      this.eventsGateway.emitToOrganization(organizationId, 'message:new', {
+        ...savedMessage,
+        contact,
+        conversation,
+      });
+      this.eventsGateway.emitToConversation(conversation.id, 'message:new', savedMessage);
+
+      // Dispatch flow trigger check via Bull queue
+      await this.flowQueue.add('check-triggers', {
+        organizationId,
+        conversationId: conversation.id,
+        messageContent: content,
+        contactId: contact.id,
+      }, { priority: 2 });
+
+      // Dispatch AI processing (sentiment analysis)
+      await this.aiQueue.add('sentiment-analysis', {
+        messageId: savedMessage.id,
+        content,
+        contactId: contact.id,
+        organizationId,
+      }, { priority: 3 });
     } catch (error) {
       this.logger.error(`Error handling incoming message: ${error.message}`);
     }

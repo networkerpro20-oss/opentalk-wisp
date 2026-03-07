@@ -1,8 +1,0 @@
-{
-  "providers": ["node"],
-  "phases": {
-    "setup": {
-      "nixPkgs": ["git", "python3", "gcc", "gnumake", "vips"]
-    }
-  }
-}

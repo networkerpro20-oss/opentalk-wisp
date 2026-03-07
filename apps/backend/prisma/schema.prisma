@@ -383,9 +383,10 @@ model Deal {
   id        String   @id @default(uuid())
   
   // Información básica
-  title     String
-  value     Decimal @db.Decimal(10, 2)
-  currency  String @default("USD")
+  title       String
+  description String?
+  value       Decimal @db.Decimal(10, 2)
+  currency    String @default("USD")
   
   // Estado
   status    DealStatus @default(OPEN)

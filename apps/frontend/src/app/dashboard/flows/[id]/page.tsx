@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -16,6 +16,7 @@ import { useFlowStore } from '@/store/flowStore';
 import { NodePalette } from '@/components/NodePalette';
 import { NodeEditor } from '@/components/NodeEditor';
 import { FlowTestPanel } from '@/components/flows/FlowTestPanel';
+import { api } from '@/lib/api';
 import {
   TriggerNode,
   MessageNode,
@@ -189,8 +190,22 @@ function FlowCanvas({ onSave, flowId }: { onSave: () => void; flowId: string }) 
 }
 
 export default function FlowEditorPage({ params }: { params: { id: string } }) {
-  const { getFlowData } = useFlowStore();
+  const { getFlowData, loadFlow, clearFlow } = useFlowStore();
   const flowId = params.id;
+
+  // Load existing flow data when editing
+  useEffect(() => {
+    if (flowId !== 'new') {
+      api.get(`/flows/${flowId}`)
+        .then((res) => loadFlow(res.data))
+        .catch((err) => {
+          console.error('Error loading flow:', err);
+          alert('Error al cargar el flow');
+        });
+    } else {
+      clearFlow();
+    }
+  }, [flowId, loadFlow, clearFlow]);
 
   const handleSave = useCallback(async () => {
     const flowData = getFlowData();
@@ -207,27 +222,19 @@ export default function FlowEditorPage({ params }: { params: { id: string } }) {
     };
 
     try {
-      const url = flowId === 'new' ? '/api/flows' : `/api/flows/${flowId}`;
-      const method = flowId === 'new' ? 'POST' : 'PUT';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        alert('✅ Flow guardado correctamente');
-        if (flowId === 'new') {
-          window.location.href = '/dashboard/flows';
-        }
+      if (flowId === 'new') {
+        await api.post('/flows', payload);
       } else {
-        alert('❌ Error al guardar el flow');
+        await api.put(`/flows/${flowId}`, payload);
+      }
+      alert('Flow guardado correctamente');
+      if (flowId === 'new') {
+        window.location.href = '/dashboard/flows';
       }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Error saving flow:', error);
-      alert('❌ Error de conexión');
+      alert('Error al guardar el flow');
     }
   }, [flowId, getFlowData]);
 

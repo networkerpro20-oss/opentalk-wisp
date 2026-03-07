@@ -7,6 +7,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
+import { EventsModule } from './events/events.module';
 
 // Feature modules
 import { OrganizationsModule } from './organizations/organizations.module';
@@ -16,6 +17,7 @@ import { ConversationsModule } from './conversations/conversations.module';
 import { MessagesModule } from './messages/messages.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { DealsModule } from './deals/deals.module';
+import { PipelinesModule } from './pipelines/pipelines.module';
 import { AiModule } from './ai/ai.module';
 import { FlowsModule } from './flows/flows.module';
 import { QueuesModule } from './queues/queues.module';
@@ -26,6 +28,7 @@ import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 import { InternalNotesModule } from './internal-notes/internal-notes.module';
 import { TagsModule } from './tags/tags.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -51,6 +54,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
     PrismaModule,
     HealthModule,
     AuthModule,
+    EventsModule,
 
     // Feature modules
     OrganizationsModule,
@@ -60,6 +64,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
     MessagesModule,
     WhatsappModule,
     DealsModule,
+    PipelinesModule,
     AiModule,
     FlowsModule,
     QueuesModule,
@@ -70,6 +75,7 @@ import { CampaignsModule } from './campaigns/campaigns.module';
     InternalNotesModule,
     TagsModule,
     CampaignsModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

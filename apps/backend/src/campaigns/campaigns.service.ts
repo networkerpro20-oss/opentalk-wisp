@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { CreateCampaignDto, CampaignStatus } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -8,7 +9,10 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 export class CampaignsService {
   private readonly logger = new Logger(CampaignsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private whatsappService: WhatsappService,
+  ) {}
 
   async create(organizationId: string, userId: string, createCampaignDto: CreateCampaignDto) {
     const campaign = await this.prisma.campaign.create({
@@ -302,11 +306,40 @@ export class CampaignsService {
           },
         });
 
-        // TODO: Send actual WhatsApp message via WhatsApp service
-        // For now, just log
-        this.logger.log(`Would send to ${contact.phone}: ${message}`);
+        // Send actual WhatsApp message
+        try {
+          const instance = await this.prisma.whatsAppInstance.findFirst({
+            where: { organizationId, status: 'CONNECTED' },
+          });
 
-        // Simulate sending delay
+          if (instance && contact.phone) {
+            await this.whatsappService.sendMessage(organizationId, {
+              instanceId: instance.id,
+              to: contact.phone,
+              message,
+            });
+
+            await this.prisma.campaignExecution.updateMany({
+              where: { campaignId, contactId: contact.id },
+              data: { status: 'SENT', sentAt: new Date() },
+            });
+
+            this.logger.log(`Campaign ${campaignId}: sent to ${contact.phone}`);
+          } else {
+            await this.prisma.campaignExecution.updateMany({
+              where: { campaignId, contactId: contact.id },
+              data: { status: 'FAILED', error: instance ? 'No phone number' : 'No connected WhatsApp instance' },
+            });
+          }
+        } catch (sendError) {
+          this.logger.error(`Campaign ${campaignId}: failed to send to ${contact.phone}: ${sendError.message}`);
+          await this.prisma.campaignExecution.updateMany({
+            where: { campaignId, contactId: contact.id },
+            data: { status: 'FAILED', error: sendError.message },
+          });
+        }
+
+        // Rate limiting delay
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
 

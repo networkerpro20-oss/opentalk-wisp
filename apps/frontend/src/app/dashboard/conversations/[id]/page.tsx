@@ -3,10 +3,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { conversationsAPI, whatsappAPI } from '@/lib/api-extended';
+import { connectSocket, getSocket } from '@/lib/socket';
 import { toast } from 'sonner';
+import { Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
+import { InternalNotesPanel } from '@/components/internal-notes/InternalNotesPanel';
+import { AISuggestions } from '@/components/ai/AISuggestions';
+import MediaUpload from '@/components/MediaUpload';
 
 export default function ConversationDetailPage({ params }: { params: { id: string } }) {
   const [message, setMessage] = useState('');
+  const [showMedia, setShowMedia] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -48,6 +55,23 @@ export default function ConversationDetailPage({ params }: { params: { id: strin
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation?.messages]);
+
+  // WebSocket: listen for new messages in real-time
+  useEffect(() => {
+    connectSocket();
+    const socket = getSocket();
+
+    const handleNewMessage = (msg: any) => {
+      if (msg.conversationId === params.id) {
+        queryClient.invalidateQueries({ queryKey: ['conversation', params.id] });
+      }
+    };
+
+    socket.on('message:new', handleNewMessage);
+    return () => {
+      socket.off('message:new', handleNewMessage);
+    };
+  }, [params.id, queryClient]);
 
   if (isLoading) {
     return (
@@ -122,6 +146,22 @@ export default function ConversationDetailPage({ params }: { params: { id: strin
             </div>
           )}
         </div>
+
+        {/* Internal Notes - Collapsible */}
+        <div className="mt-6 border-t pt-4">
+          <button
+            onClick={() => setShowNotes(!showNotes)}
+            className="flex items-center justify-between w-full text-sm font-medium text-gray-700 hover:text-gray-900"
+          >
+            Notas Internas
+            {showNotes ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          {showNotes && (
+            <div className="mt-3 -mx-2">
+              <InternalNotesPanel conversationId={params.id} />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main - Messages */}
@@ -160,9 +200,35 @@ export default function ConversationDetailPage({ params }: { params: { id: strin
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Media Upload (toggleable) */}
+        {showMedia && conversation?.whatsappInstance?.id && (
+          <div className="border-t border-gray-200 px-4 pt-3">
+            <MediaUpload
+              instanceId={conversation.whatsappInstance.id}
+              recipientPhone={conversation.contact.phone}
+              onSuccess={() => {
+                setShowMedia(false);
+                queryClient.invalidateQueries({ queryKey: ['conversation', params.id] });
+              }}
+            />
+          </div>
+        )}
+
         {/* Send Message Form */}
         <div className="border-t border-gray-200 p-4">
-          <form onSubmit={handleSend} className="flex space-x-4">
+          <form onSubmit={handleSend} className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowMedia(!showMedia)}
+              className={`p-2 rounded-lg transition ${showMedia ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-500'}`}
+              title="Adjuntar archivo"
+            >
+              <Paperclip size={20} />
+            </button>
+            <AISuggestions
+              conversationId={params.id}
+              onSelectSuggestion={(text) => setMessage(text)}
+            />
             <input
               type="text"
               value={message}

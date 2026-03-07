@@ -300,13 +300,18 @@ export class DealsService {
       }),
     ]);
 
+    const closedDeals = won + lost;
+    const conversionRate = closedDeals > 0 ? Math.round((won / closedDeals) * 100 * 10) / 10 : 0;
+
     return {
       total,
+      totalDeals: total,
       open,
       won,
       lost,
       totalValue: totalValue._sum.value || 0,
       wonValue: wonValue._sum.value || 0,
+      conversionRate,
     };
   }
 

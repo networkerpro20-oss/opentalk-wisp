@@ -47,7 +47,7 @@
     "@nestjs/websockets": "^10.3.0",
     "@prisma/client": "^5.8.0",
     "@socket.io/redis-adapter": "^8.2.1",
-    "@whiskeysockets/baileys": "latest",
+    "@whiskeysockets/baileys": "6.17.16",
     "bcrypt": "^5.1.1",
     "bull": "^4.16.5",
     "pino": "^8.17.2",

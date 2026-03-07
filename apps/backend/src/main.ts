@@ -15,6 +15,13 @@ async function bootstrap() {
   const port = configService.get('PORT') || process.env.PORT || 10000;
   const apiPrefix = configService.get('API_PREFIX', '/api');
 
+  // Security: prevent running with default JWT secret in production
+  const jwtSecret = configService.get('JWT_SECRET');
+  if (process.env.NODE_ENV === 'production' && (!jwtSecret || jwtSecret === 'change-me-in-production')) {
+    console.error('FATAL: JWT_SECRET must be set to a secure value in production.');
+    process.exit(1);
+  }
+
   // Security
   app.use(helmet());
   app.use(compression());
@@ -29,7 +36,8 @@ async function bootstrap() {
     'http://localhost:3001';
     
   const allowedOrigins = [
-    'http://localhost:3001', 
+    'http://localhost:3001',
+    'http://localhost:3002',
     'http://localhost:3000',
     'https://opentalk-wisp-frontend.vercel.app',
     'https://opentalk-wisp-frontend-mirhxs4hd.vercel.app'

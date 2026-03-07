@@ -2,10 +2,12 @@
 
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { contactsAPI } from '@/lib/api-extended';
 import { toast } from 'sonner';
 
 export default function NewContactPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     name: '',
@@ -18,18 +20,10 @@ export default function NewContactPage() {
 
   const createMutation = useMutation({
     mutationFn: contactsAPI.create,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
       toast.success('Contacto creado exitosamente');
-      // Reset form
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        company: '',
-        position: '',
-        notes: '',
-      });
+      router.push(`/dashboard/contacts/${data.id}`);
     },
     onError: () => {
       toast.error('Error al crear contacto');
