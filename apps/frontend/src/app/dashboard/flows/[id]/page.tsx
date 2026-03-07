@@ -214,18 +214,16 @@ export default function FlowEditorPage({ params }: { params: { id: string } }) {
       name: flowData.name,
       trigger: flowData.trigger,
       isActive: true,
-      config: {
-        nodes: flowData.nodes,
-        edges: flowData.edges,
-        description: '',
-      },
+      nodes: flowData.nodes,
+      edges: flowData.edges,
+      description: '',
     };
 
     try {
       if (flowId === 'new') {
         await api.post('/flows', payload);
       } else {
-        await api.put(`/flows/${flowId}`, payload);
+        await api.patch(`/flows/${flowId}`, payload);
       }
       alert('Flow guardado correctamente');
       if (flowId === 'new') {
