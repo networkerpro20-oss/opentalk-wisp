@@ -31,11 +31,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Solo ejecutar en el cliente
+    // Solo redirigir a login si es 401 y no estamos ya en login
     if (typeof window !== 'undefined' && error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      if (!window.location.pathname.startsWith('/login')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('auth-storage'); // Clear zustand persisted state
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
