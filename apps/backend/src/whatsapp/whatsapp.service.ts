@@ -173,13 +173,8 @@ export class WhatsappService {
       throw new Error('WhatsApp instance is not connected');
     }
 
-    // Verify WebSocket is actually open
-    const ws = (connection.socket as any).ws;
-    if (ws && ws.readyState !== 1) {
-      this.logger.warn(`WebSocket not open (readyState: ${ws?.readyState}), reconnecting...`);
-      connection.status = WhatsAppStatus.DISCONNECTED;
-      throw new Error('WhatsApp connection lost. Please reconnect the instance.');
-    }
+    // Trust the connection.status managed by connection.update event
+    // Don't check ws.readyState - it's unreliable in Baileys v7 (returns undefined)
 
     // Build JID: handle both regular phone numbers and LID identifiers
     let jid: string;
