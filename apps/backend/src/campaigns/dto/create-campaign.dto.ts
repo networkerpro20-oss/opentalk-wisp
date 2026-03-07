@@ -57,4 +57,33 @@ export class CreateCampaignDto {
   @IsOptional()
   @IsBoolean()
   autoStart?: boolean;
+
+  @ApiPropertyOptional({ description: 'AI brief to generate campaign message' })
+  @IsOptional()
+  @IsString()
+  aiBrief?: string;
+
+  @ApiPropertyOptional({ description: 'AI generated text' })
+  @IsOptional()
+  @IsString()
+  aiGeneratedText?: string;
+
+  @ApiPropertyOptional({ description: 'Message type: TEXT, AUDIO, IMAGE, DOCUMENT' })
+  @IsOptional()
+  @IsString()
+  campaignMessageType?: string;
+
+  @ApiPropertyOptional({ description: 'Audio URL for TTS campaigns' })
+  @IsOptional()
+  @IsString()
+  audioUrl?: string;
+
+  @ApiPropertyOptional({ description: 'TTS voice: alloy, echo, fable, onyx, nova, shimmer' })
+  @IsOptional()
+  @IsString()
+  ttsVoice?: string;
+
+  @ApiPropertyOptional({ description: 'A/B test variants [{id, message, weight}]' })
+  @IsOptional()
+  variants?: any;
 }

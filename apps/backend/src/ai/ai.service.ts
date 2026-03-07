@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { KnowledgeBaseService } from '../knowledge-base/knowledge-base.service';
 import OpenAI from 'openai';
 
 export interface SentimentAnalysisResult {
@@ -40,7 +41,11 @@ export class AiService {
   private readonly logger = new Logger(AiService.name);
   private openai: OpenAI | null = null;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    @Optional() @Inject(forwardRef(() => KnowledgeBaseService))
+    private knowledgeBaseService?: KnowledgeBaseService,
+  ) {
     // Inicializar OpenAI solo si hay API key
     if (process.env.OPENAI_API_KEY) {
       this.openai = new OpenAI({
@@ -260,11 +265,12 @@ export class AiService {
   }
 
   /**
-   * Generar respuesta automática inteligente
+   * Generar respuesta automática inteligente (KB-aware)
    */
   async generateAutoResponse(
     messageText: string,
     conversationContext?: string[],
+    organizationId?: string,
   ): Promise<AutoResponseResult> {
     try {
       if (!this.openai) {
@@ -274,44 +280,92 @@ export class AiService {
       const contextMessages = conversationContext?.slice(-5) || [];
       const context = contextMessages.join('\n');
 
-      const completion = await this.openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `Eres un asistente virtual de un CRM de ventas. Tu objetivo es:
-1. Responder de manera profesional y amigable
-2. Capturar información del cliente (nombre, email, teléfono, necesidad)
-3. Calificar el lead
-4. Agendar citas si es apropiado
-5. Responder preguntas frecuentes
+      // Build KB-aware prompt if organizationId provided
+      let kbContext = '';
+      let personalityInstruction = '';
+      let customSystemPrompt = '';
+      let confidenceThreshold = 0.7;
+      let openaiClient = this.openai;
 
-Contexto de la conversación anterior:
+      if (organizationId && this.knowledgeBaseService) {
+        const kbData = await this.knowledgeBaseService.buildKBContext(messageText, organizationId);
+        if (kbData) {
+          confidenceThreshold = kbData.confidenceThreshold;
+          if (kbData.context) {
+            kbContext = `\n\nBase de Conocimiento del negocio (usa esta informacion para responder):\n${kbData.context}`;
+          }
+          if (kbData.systemPrompt) {
+            customSystemPrompt = `\n\nInstrucciones del negocio: ${kbData.systemPrompt}`;
+          }
+          personalityInstruction = this.getPersonalityInstruction(kbData.personality);
+
+          // Check for custom API key
+          const kb = await this.prisma.knowledgeBase.findUnique({
+            where: { organizationId },
+            select: { customApiKey: true },
+          });
+          if (kb?.customApiKey) {
+            openaiClient = new OpenAI({ apiKey: kb.customApiKey });
+          }
+        }
+      }
+
+      const systemPrompt = `${personalityInstruction || 'Eres un asistente virtual de atencion al cliente.'}
+${customSystemPrompt}
+${kbContext}
+
+Tu objetivo es:
+1. Responder preguntas usando la base de conocimiento cuando sea relevante
+2. Ser util y profesional
+3. Capturar informacion del cliente si es apropiado
+4. Si no tienes informacion suficiente para responder, indica baja confianza
+
+Contexto de la conversacion anterior:
 ${context}
 
 Responde en formato JSON:
 {
   "response": "tu respuesta al cliente",
   "confidence": 0-1,
-  "suggestedActions": ["acción1", "acción2"],
+  "suggestedActions": ["accion1", "accion2"],
   "needsHumanReview": true/false
-}`,
-          },
-          {
-            role: 'user',
-            content: messageText,
-          },
+}`;
+
+      const completion = await openaiClient.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: messageText },
         ],
         temperature: 0.7,
-        max_tokens: 300,
+        max_tokens: 500,
       });
 
       const result = JSON.parse(completion.choices[0].message.content || '{}');
+
+      // Apply confidence threshold from KB config
+      if (result.confidence < confidenceThreshold) {
+        result.needsHumanReview = true;
+      }
+
       return result;
     } catch (error) {
       this.logger.error('Error generating auto response with OpenAI:', error);
       return this.fallbackAutoResponse(messageText);
     }
+  }
+
+  /**
+   * Get personality-specific system instruction
+   */
+  private getPersonalityInstruction(personality: string): string {
+    const personalities: Record<string, string> = {
+      PROFESSIONAL: 'Eres un asistente virtual profesional y formal. Usa un tono corporativo, claro y respetuoso.',
+      FRIENDLY: 'Eres un asistente virtual amigable y cercano. Usa un tono casual pero respetuoso, con calidez.',
+      AGGRESSIVE: 'Eres un asistente de ventas proactivo y persuasivo. Busca cerrar ventas y generar urgencia de forma etica.',
+      EDUCATIONAL: 'Eres un asistente educativo y paciente. Explica con detalle, usa ejemplos y guia al usuario paso a paso.',
+    };
+    return personalities[personality] || personalities.PROFESSIONAL;
   }
 
   /**

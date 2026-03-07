@@ -20,4 +20,9 @@ export class GenerateResponseDto {
   @IsArray()
   @IsOptional()
   context?: string[];
+
+  @ApiProperty({ description: 'ID de la organizacion para KB context', required: false })
+  @IsString()
+  @IsOptional()
+  organizationId?: string;
 }

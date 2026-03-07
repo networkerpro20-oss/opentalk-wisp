@@ -58,7 +58,7 @@ export class AiController {
       };
     }
 
-    return this.aiService.generateAutoResponse(messageText, context);
+    return this.aiService.generateAutoResponse(messageText, context, dto.organizationId);
   }
 
   @Post('extract-info')

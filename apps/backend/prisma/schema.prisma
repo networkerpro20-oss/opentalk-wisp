@@ -50,7 +50,8 @@ model Organization {
   teams         Team[]
   routingRules  RoutingRule[]
   quickReplies  QuickReply[]
-  
+  knowledgeBase KnowledgeBase?
+
   @@index([slug])
   @@index([domain])
   @@map("organizations")
@@ -556,12 +557,20 @@ model Campaign {
   description String?
   status    CampaignStatus @default(DRAFT)
   
-  // Configuración
-  targetSegment   Json?        // Criterios de segmentación
+  // Configuracion
+  targetSegment   Json?        // Criterios de segmentacion
   messageTemplate String
   mediaUrl        String?
-  
-  // Programación
+
+  // AI Campaign features
+  aiBrief         String?      // Brief para que IA genere mensaje
+  aiGeneratedText String?      // Texto generado por IA
+  campaignMessageType String   @default("TEXT") // TEXT, AUDIO, IMAGE, DOCUMENT
+  audioUrl        String?      // URL de audio TTS generado
+  ttsVoice        String?      @default("alloy") // OpenAI TTS voice
+  variants        Json?        // A/B testing: [{id, message, weight}]
+
+  // Programacion
   scheduledAt     DateTime?
   startedAt       DateTime?
   completedAt     DateTime?
@@ -599,7 +608,9 @@ model CampaignExecution {
   readAt     DateTime?
   repliedAt  DateTime?
   error      String?
-  
+  variantId  String?         // A/B variant sent
+  responseContent String?    // Contact's response content
+
   // Relaciones
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -856,4 +867,87 @@ model InternalNote {
   @@index([conversationId])
   @@index([createdById])
   @@map("internal_notes")
+}
+
+// ============================================
+// AI KNOWLEDGE BASE
+// ============================================
+
+model KnowledgeBase {
+  id                  String   @id @default(uuid())
+  name                String   @default("Base de Conocimiento")
+  description         String?
+  isActive            Boolean  @default(true)
+
+  // AI Agent Configuration
+  systemPrompt        String?
+  personality         Personality @default(PROFESSIONAL)
+  confidenceThreshold Float   @default(0.7)
+  autoResponseEnabled Boolean @default(false)
+  customApiKey        String?
+
+  // Business hours
+  businessHours       Json?
+  outsideHoursMessage String?
+
+  // Multi-tenancy (one KB per org)
+  organizationId      String   @unique
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Relations
+  items               KnowledgeItem[]
+
+  // Timestamps
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("knowledge_bases")
+}
+
+enum Personality {
+  PROFESSIONAL
+  FRIENDLY
+  AGGRESSIVE
+  EDUCATIONAL
+}
+
+model KnowledgeItem {
+  id              String   @id @default(uuid())
+
+  title           String
+  content         String
+  category        String?
+  priority        Int      @default(5)
+
+  // Source tracking
+  sourceType      KBSourceType
+  sourceUrl       String?
+  sourceFileName  String?
+
+  // Search
+  keywords        String[] @default([])
+  embedding       Json?
+
+  isActive        Boolean  @default(true)
+
+  // Relations
+  knowledgeBaseId String
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([knowledgeBaseId])
+  @@index([category])
+  @@index([isActive])
+  @@map("knowledge_items")
+}
+
+enum KBSourceType {
+  URL
+  DOCUMENT
+  WIZARD
+  MANUAL
 }

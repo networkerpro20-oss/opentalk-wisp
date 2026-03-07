@@ -29,6 +29,7 @@ import { InternalNotesModule } from './internal-notes/internal-notes.module';
 import { TagsModule } from './tags/tags.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     TagsModule,
     CampaignsModule,
     AnalyticsModule,
+    KnowledgeBaseModule,
   ],
 })
 export class AppModule {}

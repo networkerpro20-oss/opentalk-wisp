@@ -35,7 +35,16 @@ export function CampaignWizard({ isOpen, onClose, campaign }: CampaignWizardProp
     scheduledAt: campaign?.scheduledAt || '',
     messagesPerMinute: campaign?.messagesPerMinute || 10,
     autoStart: campaign?.autoStart || false,
+    aiBrief: campaign?.aiBrief || '',
+    aiGeneratedText: campaign?.aiGeneratedText || '',
+    campaignMessageType: campaign?.campaignMessageType || 'TEXT',
+    audioUrl: campaign?.audioUrl || '',
+    ttsVoice: campaign?.ttsVoice || 'alloy',
+    variants: campaign?.variants || null,
   });
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [audioPreview, setAudioPreview] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: campaignsAPI.create,
@@ -61,7 +70,54 @@ export function CampaignWizard({ isOpen, onClose, campaign }: CampaignWizardProp
       scheduledAt: '',
       messagesPerMinute: 10,
       autoStart: false,
+      aiBrief: '',
+      aiGeneratedText: '',
+      campaignMessageType: 'TEXT',
+      audioUrl: '',
+      ttsVoice: 'alloy',
+      variants: null,
     });
+    setAudioPreview(null);
+  };
+
+  const handleGenerateMessage = async () => {
+    if (!formData.aiBrief.trim()) {
+      toast.error('Escribe un brief para generar el mensaje');
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const result = await campaignsAPI.generateMessage(formData.aiBrief);
+      setFormData({
+        ...formData,
+        messageTemplate: result.message,
+        aiGeneratedText: result.message,
+        variants: result.variants || null,
+      });
+      toast.success('Mensaje generado con IA');
+    } catch {
+      toast.error('Error al generar mensaje');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleGenerateAudio = async () => {
+    if (!formData.messageTemplate.trim()) {
+      toast.error('Primero genera o escribe un mensaje');
+      return;
+    }
+    setIsGeneratingAudio(true);
+    try {
+      const result = await campaignsAPI.generateAudio(formData.messageTemplate, formData.ttsVoice);
+      setFormData({ ...formData, audioUrl: result.audio, campaignMessageType: 'AUDIO' });
+      setAudioPreview(result.audio);
+      toast.success('Audio generado');
+    } catch {
+      toast.error('Error al generar audio');
+    } finally {
+      setIsGeneratingAudio(false);
+    }
   };
 
   const handleNext = () => {
@@ -192,6 +248,27 @@ export function CampaignWizard({ isOpen, onClose, campaign }: CampaignWizardProp
           {/* Step 2: Message */}
           {step === 2 && (
             <div className="space-y-4">
+              {/* AI Message Generator */}
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                <label className="block text-sm font-medium text-indigo-700 mb-1">
+                  Genera tu mensaje con IA
+                </label>
+                <textarea
+                  value={formData.aiBrief}
+                  onChange={(e) => setFormData({ ...formData, aiBrief: e.target.value })}
+                  rows={2}
+                  className="w-full px-4 py-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                  placeholder="Ej: Promocion de 20% de descuento en todos los productos esta semana..."
+                />
+                <button
+                  onClick={handleGenerateMessage}
+                  disabled={isGenerating}
+                  className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm"
+                >
+                  {isGenerating ? 'Generando...' : 'Generar Mensaje con IA'}
+                </button>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Mensaje *
@@ -201,15 +278,82 @@ export function CampaignWizard({ isOpen, onClose, campaign }: CampaignWizardProp
                   onChange={(e) =>
                     setFormData({ ...formData, messageTemplate: e.target.value })
                   }
-                  rows={6}
+                  rows={5}
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
                   placeholder="Hola {{name}}, tenemos una oferta especial para ti..."
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  Variables disponibles: <code className="bg-gray-100 px-1 rounded">{'{{name}}'}</code>,{' '}
+                  Variables: <code className="bg-gray-100 px-1 rounded">{'{{name}}'}</code>,{' '}
                   <code className="bg-gray-100 px-1 rounded">{'{{phoneNumber}}'}</code>,{' '}
                   <code className="bg-gray-100 px-1 rounded">{'{{email}}'}</code>
                 </p>
+              </div>
+
+              {/* A/B Variants */}
+              {formData.variants && formData.variants.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-yellow-800 mb-2">Variantes A/B Testing</h4>
+                  {formData.variants.map((v: any, i: number) => (
+                    <div key={v.id} className="mb-2 p-2 bg-white rounded border">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-gray-600">Variante {v.id} (peso: {v.weight}%)</span>
+                      </div>
+                      <p className="text-sm text-gray-700">{v.message}</p>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setFormData({ ...formData, variants: null })}
+                    className="text-xs text-red-600 hover:underline mt-1"
+                  >
+                    Eliminar variantes (usar solo mensaje principal)
+                  </button>
+                </div>
+              )}
+
+              {/* TTS Audio */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <label className="block text-sm font-medium text-green-700 mb-2">
+                  Generar Audio (TTS)
+                </label>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={formData.ttsVoice}
+                    onChange={(e) => setFormData({ ...formData, ttsVoice: e.target.value })}
+                    className="px-3 py-2 border border-green-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                  >
+                    <option value="alloy">Alloy</option>
+                    <option value="echo">Echo</option>
+                    <option value="fable">Fable</option>
+                    <option value="onyx">Onyx</option>
+                    <option value="nova">Nova</option>
+                    <option value="shimmer">Shimmer</option>
+                  </select>
+                  <button
+                    onClick={handleGenerateAudio}
+                    disabled={isGeneratingAudio}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+                  >
+                    {isGeneratingAudio ? 'Generando...' : 'Generar Audio'}
+                  </button>
+                </div>
+                {audioPreview && (
+                  <div className="mt-3">
+                    <audio controls src={audioPreview} className="w-full" />
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs text-green-600 font-medium">
+                        Tipo: {formData.campaignMessageType}
+                      </span>
+                      {formData.campaignMessageType === 'AUDIO' && (
+                        <button
+                          onClick={() => setFormData({ ...formData, campaignMessageType: 'TEXT', audioUrl: '' })}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Cambiar a texto
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

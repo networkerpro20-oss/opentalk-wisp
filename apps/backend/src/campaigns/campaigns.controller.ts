@@ -85,4 +85,27 @@ export class CampaignsController {
   getStats(@Req() req: any, @Param('id') id: string) {
     return this.campaignsService.getStats(id, req.user.organizationId);
   }
+
+  @Get(':id/analytics')
+  @ApiOperation({ summary: 'Get detailed campaign analytics with A/B variant data' })
+  getAnalytics(@Req() req: any, @Param('id') id: string) {
+    return this.campaignsService.getAnalytics(id, req.user.organizationId);
+  }
+
+  @Post('generate-message')
+  @ApiOperation({ summary: 'Generate campaign message using AI' })
+  generateMessage(@Req() req: any, @Body() body: { brief: string }) {
+    return this.campaignsService.generateCampaignMessage(body.brief, req.user.organizationId);
+  }
+
+  @Post('generate-audio')
+  @ApiOperation({ summary: 'Generate TTS audio from text' })
+  async generateAudio(@Body() body: { text: string; voice?: string }, @Req() req: any) {
+    const audioBuffer = await this.campaignsService.generateAudio(body.text, body.voice);
+    const base64 = audioBuffer.toString('base64');
+    return {
+      audio: `data:audio/mp3;base64,${base64}`,
+      size: audioBuffer.length,
+    };
+  }
 }

@@ -1,18 +1,32 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
+import { KnowledgeBaseService } from '../knowledge-base/knowledge-base.service';
 import { CreateCampaignDto, CampaignStatus } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import OpenAI from 'openai';
+
+interface ABVariant {
+  id: string;
+  message: string;
+  weight: number;
+}
 
 @Injectable()
 export class CampaignsService {
   private readonly logger = new Logger(CampaignsService.name);
+  private openai: OpenAI | null = null;
 
   constructor(
     private prisma: PrismaService,
     private whatsappService: WhatsappService,
-  ) {}
+    @Optional() private knowledgeBaseService?: KnowledgeBaseService,
+  ) {
+    if (process.env.OPENAI_API_KEY) {
+      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    }
+  }
 
   async create(organizationId: string, userId: string, createCampaignDto: CreateCampaignDto) {
     const campaign = await this.prisma.campaign.create({
@@ -29,6 +43,12 @@ export class CampaignsService {
         status: createCampaignDto.scheduledAt ? CampaignStatus.SCHEDULED : CampaignStatus.DRAFT,
         organizationId,
         createdById: userId,
+        aiBrief: createCampaignDto.aiBrief,
+        aiGeneratedText: createCampaignDto.aiGeneratedText,
+        campaignMessageType: createCampaignDto.campaignMessageType || 'TEXT',
+        audioUrl: createCampaignDto.audioUrl,
+        ttsVoice: createCampaignDto.ttsVoice || 'alloy',
+        variants: createCampaignDto.variants as any,
       },
     });
 
@@ -130,6 +150,12 @@ export class CampaignsService {
         ...(updateCampaignDto.messagesPerMinute && {
           messagesPerMinute: updateCampaignDto.messagesPerMinute,
         }),
+        ...(updateCampaignDto.aiBrief !== undefined && { aiBrief: updateCampaignDto.aiBrief }),
+        ...(updateCampaignDto.aiGeneratedText !== undefined && { aiGeneratedText: updateCampaignDto.aiGeneratedText }),
+        ...(updateCampaignDto.campaignMessageType && { campaignMessageType: updateCampaignDto.campaignMessageType }),
+        ...(updateCampaignDto.audioUrl !== undefined && { audioUrl: updateCampaignDto.audioUrl }),
+        ...(updateCampaignDto.ttsVoice && { ttsVoice: updateCampaignDto.ttsVoice }),
+        ...(updateCampaignDto.variants !== undefined && { variants: updateCampaignDto.variants as any }),
       },
     });
   }
@@ -294,8 +320,17 @@ export class CampaignsService {
           break;
         }
 
-        // Replace variables in template
-        const message = this.replaceVariables(campaign.messageTemplate, contact);
+        // Select variant if A/B testing
+        let selectedVariant: ABVariant | null = null;
+        let message: string;
+
+        const variants = campaign.variants as ABVariant[] | null;
+        if (variants && variants.length > 0) {
+          selectedVariant = this.selectVariant(variants);
+          message = this.replaceVariables(selectedVariant.message, contact);
+        } else {
+          message = this.replaceVariables(campaign.messageTemplate, contact);
+        }
 
         // Create execution record
         await this.prisma.campaignExecution.create({
@@ -303,6 +338,7 @@ export class CampaignsService {
             campaignId,
             contactId: contact.id,
             status: 'PENDING',
+            variantId: selectedVariant?.id || null,
           },
         });
 
@@ -313,11 +349,23 @@ export class CampaignsService {
           });
 
           if (instance && contact.phone) {
-            await this.whatsappService.sendMessage(organizationId, {
-              instanceId: instance.id,
-              to: contact.phone,
-              message,
-            });
+            if (campaign.campaignMessageType === 'AUDIO' && campaign.audioUrl) {
+              // Send audio message
+              await this.whatsappService.sendMedia(organizationId, {
+                instanceId: instance.id,
+                to: contact.phone,
+                mediaUrl: campaign.audioUrl,
+                type: 'audio' as any,
+                caption: '',
+              });
+            } else {
+              // Send text message
+              await this.whatsappService.sendMessage(organizationId, {
+                instanceId: instance.id,
+                to: contact.phone,
+                message,
+              });
+            }
 
             await this.prisma.campaignExecution.updateMany({
               where: { campaignId, contactId: contact.id },
@@ -402,6 +450,171 @@ export class CampaignsService {
       .replace(/{{name}}/g, contact.name || 'Cliente')
       .replace(/{{phoneNumber}}/g, contact.phone || '')
       .replace(/{{email}}/g, contact.email || '');
+  }
+
+  /**
+   * Select A/B variant using weighted random selection
+   */
+  private selectVariant(variants: ABVariant[]): ABVariant {
+    const totalWeight = variants.reduce((sum, v) => sum + (v.weight || 1), 0);
+    let random = Math.random() * totalWeight;
+    for (const variant of variants) {
+      random -= variant.weight || 1;
+      if (random <= 0) return variant;
+    }
+    return variants[0];
+  }
+
+  /**
+   * Generate campaign message using AI + KB context
+   */
+  async generateCampaignMessage(brief: string, organizationId: string): Promise<{
+    message: string;
+    variants?: ABVariant[];
+  }> {
+    if (!this.openai) {
+      return { message: brief };
+    }
+
+    let kbContext = '';
+    if (this.knowledgeBaseService) {
+      const kbData = await this.knowledgeBaseService.buildKBContext(brief, organizationId);
+      if (kbData?.context) {
+        kbContext = `\n\nInformacion del negocio:\n${kbData.context}`;
+      }
+    }
+
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Eres un experto en marketing por WhatsApp. Genera mensajes de campana efectivos.
+${kbContext}
+
+Reglas:
+- Maximo 500 caracteres por mensaje
+- Incluye llamado a la accion
+- Usa variables {{name}} para personalizar
+- Genera 3 variantes para A/B testing
+- Responde en JSON:
+{
+  "message": "mensaje principal",
+  "variants": [
+    {"id": "A", "message": "variante A", "weight": 50},
+    {"id": "B", "message": "variante B", "weight": 30},
+    {"id": "C", "message": "variante C", "weight": 20}
+  ]
+}`,
+          },
+          { role: 'user', content: brief },
+        ],
+        temperature: 0.8,
+        max_tokens: 800,
+        response_format: { type: 'json_object' },
+      });
+
+      const result = JSON.parse(completion.choices[0].message.content || '{}');
+      return {
+        message: result.message || brief,
+        variants: result.variants,
+      };
+    } catch (error) {
+      this.logger.error('Error generating campaign message:', error);
+      return { message: brief };
+    }
+  }
+
+  /**
+   * Generate TTS audio from text using OpenAI
+   */
+  async generateAudio(text: string, voice: string = 'alloy'): Promise<Buffer> {
+    if (!this.openai) {
+      throw new Error('OpenAI not configured');
+    }
+
+    const validVoices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+    const selectedVoice = validVoices.includes(voice) ? voice : 'alloy';
+
+    const response = await this.openai.audio.speech.create({
+      model: 'tts-1',
+      voice: selectedVoice as any,
+      input: text.slice(0, 4096),
+    });
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  }
+
+  /**
+   * Get detailed analytics for a campaign including A/B variant performance
+   */
+  async getAnalytics(id: string, organizationId: string) {
+    const campaign = await this.prisma.campaign.findFirst({
+      where: { id, organizationId },
+    });
+
+    if (!campaign) throw new NotFoundException(`Campaign not found`);
+
+    const executions = await this.prisma.campaignExecution.findMany({
+      where: { campaignId: id },
+    });
+
+    const total = executions.length;
+    const sent = executions.filter(e => e.status === 'SENT' || e.status === 'DELIVERED' || e.status === 'READ').length;
+    const delivered = executions.filter(e => e.status === 'DELIVERED' || e.status === 'READ').length;
+    const read = executions.filter(e => e.status === 'READ').length;
+    const replied = executions.filter(e => e.repliedAt !== null).length;
+    const failed = executions.filter(e => e.status === 'FAILED').length;
+
+    // A/B variant stats
+    const variantStats: Record<string, { sent: number; delivered: number; read: number; replied: number }> = {};
+    for (const exec of executions) {
+      if (exec.variantId) {
+        if (!variantStats[exec.variantId]) {
+          variantStats[exec.variantId] = { sent: 0, delivered: 0, read: 0, replied: 0 };
+        }
+        const vs = variantStats[exec.variantId];
+        if (exec.status !== 'PENDING' && exec.status !== 'FAILED') vs.sent++;
+        if (exec.status === 'DELIVERED' || exec.status === 'READ') vs.delivered++;
+        if (exec.status === 'READ') vs.read++;
+        if (exec.repliedAt) vs.replied++;
+      }
+    }
+
+    // Timeline: group by hour
+    const timeline: Record<string, number> = {};
+    for (const exec of executions) {
+      if (exec.sentAt) {
+        const hour = exec.sentAt.toISOString().slice(0, 13);
+        timeline[hour] = (timeline[hour] || 0) + 1;
+      }
+    }
+
+    return {
+      campaign: {
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        campaignMessageType: campaign.campaignMessageType,
+        startedAt: campaign.startedAt,
+        completedAt: campaign.completedAt,
+      },
+      metrics: {
+        total,
+        sent,
+        delivered,
+        read,
+        replied,
+        failed,
+        deliveryRate: total > 0 ? ((delivered / total) * 100).toFixed(1) : '0',
+        readRate: delivered > 0 ? ((read / delivered) * 100).toFixed(1) : '0',
+        replyRate: sent > 0 ? ((replied / sent) * 100).toFixed(1) : '0',
+      },
+      variantStats,
+      timeline: Object.entries(timeline).map(([hour, count]) => ({ hour, count })),
+    };
   }
 
   // Cron job to check for scheduled campaigns

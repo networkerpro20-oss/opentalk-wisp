@@ -16,6 +16,7 @@ const navigation = [
   { name: 'Campañas', href: '/dashboard/campaigns', icon: '📣' },
   { name: 'Flujos', href: '/dashboard/flows', icon: '🔄' },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: '📱' },
+  { name: 'Base de Conocimiento', href: '/dashboard/knowledge-base', icon: '🧠' },
   { name: 'Equipos', href: '/dashboard/teams', icon: '👨‍👩‍👧‍👦' },
   { name: 'Usuarios', href: '/dashboard/users', icon: '👤' },
 ];

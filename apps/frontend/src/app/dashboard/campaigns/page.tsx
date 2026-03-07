@@ -162,7 +162,15 @@ export default function CampaignsPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-1">
                     {campaign.name}
                   </h3>
-                  {getStatusBadge(campaign.status)}
+                  <div className="flex items-center gap-1 mt-1">
+                    {getStatusBadge(campaign.status)}
+                    {campaign.campaignMessageType === 'AUDIO' && (
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">Audio</span>
+                    )}
+                    {campaign.variants && (
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-700">A/B</span>
+                    )}
+                  </div>
                 </div>
               </div>
 

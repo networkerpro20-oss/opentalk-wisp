@@ -56,4 +56,19 @@ export const campaignsAPI = {
     const response = await api.get(`/campaigns/${id}/stats`);
     return response.data;
   },
+
+  getAnalytics: async (id: string) => {
+    const response = await api.get(`/campaigns/${id}/analytics`);
+    return response.data;
+  },
+
+  generateMessage: async (brief: string) => {
+    const response = await api.post('/campaigns/generate-message', { brief });
+    return response.data;
+  },
+
+  generateAudio: async (text: string, voice?: string) => {
+    const response = await api.post('/campaigns/generate-audio', { text, voice });
+    return response.data;
+  },
 };
