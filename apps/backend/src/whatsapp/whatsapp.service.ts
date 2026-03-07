@@ -196,10 +196,9 @@ export class WhatsappService {
       this.logger.log(`Message sent result: ${JSON.stringify(sent?.key || 'no key')}`);
 
       if (!sent?.key?.id) {
-        this.logger.error(`Message send returned no key ID - connection may be stale`);
-        // Mark connection as potentially broken
-        connection.status = WhatsAppStatus.DISCONNECTED;
-        throw new Error('Message send failed - no confirmation from WhatsApp. Try reconnecting the instance.');
+        this.logger.warn(`Message send returned no key ID for JID: ${jid}`);
+        // Don't mark connection as DISCONNECTED - let connection.update handle that
+        // A failed send to an invalid number shouldn't kill the whole connection
       }
 
       // Buscar o crear contacto
@@ -724,9 +723,24 @@ export class WhatsappService {
     try {
       if (!msg.message || !msg.key || msg.key.fromMe) return;
 
-      const rawJid = msg.key.remoteJid?.split('@')[0] || '';
+      const remoteJid = msg.key.remoteJid || '';
+
+      this.logger.log(`📨 Incoming message - remoteJid: ${remoteJid}, pushName: ${msg.pushName || 'none'}, participant: ${msg.key.participant || 'none'}`);
+
+      // Only process individual WhatsApp messages (skip groups, broadcasts, LIDs)
+      if (!remoteJid.endsWith('@s.whatsapp.net')) {
+        this.logger.log(`⏭️ Skipping non-individual message from: ${remoteJid}`);
+        return;
+      }
+
+      const rawJid = remoteJid.split('@')[0];
       const phoneNumber = rawJid.split(':')[0]; // Remove device suffix if present
-      if (!phoneNumber) return;
+      if (!phoneNumber || phoneNumber.length > 15) {
+        this.logger.warn(`⚠️ Invalid phone number extracted: "${phoneNumber}" from JID: ${remoteJid}`);
+        return;
+      }
+
+      this.logger.log(`📱 Extracted phone: ${phoneNumber} from JID: ${remoteJid}`);
 
       // Buscar o crear contacto
       let contact = await this.prisma.contact.findFirst({
