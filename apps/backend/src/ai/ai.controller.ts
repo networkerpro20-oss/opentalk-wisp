@@ -1,13 +1,17 @@
 import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AiService } from './ai.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { AnalyzeSentimentDto } from './dto/analyze-sentiment.dto';
 import { GenerateResponseDto } from './dto/generate-response.dto';
 
 @ApiTags('ai')
 @Controller('ai')
 export class AiController {
-  constructor(private readonly aiService: AiService) {}
+  constructor(
+    private readonly aiService: AiService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post('sentiment')
   @ApiOperation({ summary: 'Analizar sentimiento de un texto' })
@@ -21,14 +25,44 @@ export class AiController {
     return this.aiService.calculateLeadScore(contactId);
   }
 
-  @Post('auto-response')
-  @ApiOperation({ summary: 'Generar respuesta automática inteligente' })
+  @Post('generate-response')
+  @ApiOperation({ summary: 'Generar respuesta automatica inteligente' })
   async generateAutoResponse(@Body() dto: GenerateResponseDto) {
-    return this.aiService.generateAutoResponse(dto.messageText, dto.context);
+    let messageText = dto.messageText || '';
+    let context = dto.context;
+
+    // If conversationId is provided, fetch messages from DB
+    if (dto.conversationId && !messageText) {
+      const messages = await this.prisma.message.findMany({
+        where: { conversationId: dto.conversationId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: { content: true, direction: true },
+      });
+
+      if (messages.length > 0) {
+        messageText = messages[0].content;
+        context = messages
+          .slice(1)
+          .reverse()
+          .map((m) => `${m.direction === 'INBOUND' ? 'Cliente' : 'Agente'}: ${m.content}`);
+      }
+    }
+
+    if (!messageText) {
+      return {
+        response: 'No hay mensajes para generar una respuesta.',
+        confidence: 0,
+        suggestedActions: [],
+        needsHumanReview: true,
+      };
+    }
+
+    return this.aiService.generateAutoResponse(messageText, context);
   }
 
   @Post('extract-info')
-  @ApiOperation({ summary: 'Extraer información de contacto de un texto' })
+  @ApiOperation({ summary: 'Extraer informacion de contacto de un texto' })
   async extractContactInfo(@Body() dto: AnalyzeSentimentDto) {
     return this.aiService.extractContactInfo(dto.text);
   }

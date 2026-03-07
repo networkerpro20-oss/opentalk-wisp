@@ -1,16 +1,21 @@
-import { IsString, IsNotEmpty, IsArray, IsOptional } from 'class-validator';
+import { IsString, IsArray, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class GenerateResponseDto {
-  @ApiProperty({ description: 'Mensaje del usuario' })
+  @ApiProperty({ description: 'ID de la conversacion', required: false })
   @IsString()
-  @IsNotEmpty()
-  messageText: string;
+  @IsOptional()
+  conversationId?: string;
 
-  @ApiProperty({ 
-    description: 'Contexto de la conversación (mensajes anteriores)',
+  @ApiProperty({ description: 'Mensaje del usuario', required: false })
+  @IsString()
+  @IsOptional()
+  messageText?: string;
+
+  @ApiProperty({
+    description: 'Contexto de la conversacion (mensajes anteriores)',
     required: false,
-    type: [String]
+    type: [String],
   })
   @IsArray()
   @IsOptional()
