@@ -49,6 +49,21 @@ export const conversationsAPI = {
     const { data } = await api.post('/conversations', conversationData);
     return data;
   },
+
+  update: async (id: string, updateData: any) => {
+    const { data } = await api.patch(`/conversations/${id}`, updateData);
+    return data;
+  },
+
+  assign: async (id: string, userId: string) => {
+    const { data } = await api.patch(`/conversations/${id}/assign/${userId}`);
+    return data;
+  },
+
+  getStats: async () => {
+    const { data } = await api.get('/conversations/stats');
+    return data;
+  },
 };
 
 // WhatsApp API

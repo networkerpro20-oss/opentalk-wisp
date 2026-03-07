@@ -30,17 +30,23 @@ export default function ConversationsPage() {
       {/* Status Filter */}
       <div className="bg-white p-4 rounded-lg shadow">
         <div className="flex space-x-2">
-          {['all', 'OPEN', 'PENDING', 'RESOLVED', 'CLOSED'].map((status) => (
+          {([
+            { value: 'all', label: 'Todas' },
+            { value: 'OPEN', label: 'Abiertas' },
+            { value: 'PENDING', label: 'Pendientes' },
+            { value: 'RESOLVED', label: 'Resueltas' },
+            { value: 'CLOSED', label: 'Cerradas' },
+          ]).map((s) => (
             <button
-              key={status}
-              onClick={() => setSelectedStatus(status)}
+              key={s.value}
+              onClick={() => setSelectedStatus(s.value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                selectedStatus === status
+                selectedStatus === s.value
                   ? 'bg-indigo-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {status === 'all' ? 'Todas' : status}
+              {s.label}
             </button>
           ))}
         </div>
@@ -96,9 +102,15 @@ export default function ConversationsPage() {
                         {conversation.channel}
                       </span>
                       
+                      {conversation.disposition && (
+                        <span className="px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded-full">
+                          {conversation.disposition.replace(/_/g, ' ')}
+                        </span>
+                      )}
+
                       {conversation.assignedTo && (
                         <span className="text-xs text-gray-500">
-                          👤 {conversation.assignedTo.firstName} {conversation.assignedTo.lastName}
+                          {conversation.assignedTo.firstName} {conversation.assignedTo.lastName}
                         </span>
                       )}
                     </div>

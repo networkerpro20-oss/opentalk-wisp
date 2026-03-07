@@ -231,6 +231,12 @@ model Conversation {
   contactId String
   contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
   
+  // Disposicion / Flujo de proceso
+  disposition     ConversationDisposition?
+  dispositionNote String?
+  resolvedAt      DateTime?
+  resolvedById    String?
+
   // Analisis IA
   sentiment String? // positive, negative, neutral
   summary   String?
@@ -257,6 +263,7 @@ model Conversation {
   @@index([contactId])
   @@index([assignedToId])
   @@index([status])
+  @@index([disposition])
   @@map("conversations")
 }
 
@@ -265,6 +272,19 @@ enum ConversationStatus {
   PENDING
   RESOLVED
   CLOSED
+}
+
+enum ConversationDisposition {
+  PROSPECT
+  CONTACTED
+  QUALIFIED
+  CLIENT
+  SUPPORT_PENDING
+  SUPPORT_RESOLVED
+  NOT_INTERESTED
+  SPAM
+  FOLLOW_UP
+  OTHER
 }
 
 enum Channel {

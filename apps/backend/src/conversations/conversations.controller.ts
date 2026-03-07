@@ -15,7 +15,7 @@ import { ConversationsService } from './conversations.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ConversationStatus } from '@prisma/client';
+import { ConversationStatus, ConversationDisposition } from '@prisma/client';
 
 @ApiTags('Conversations')
 @ApiBearerAuth()
@@ -42,6 +42,7 @@ export class ConversationsController {
   @ApiQuery({ name: 'status', required: false, enum: ConversationStatus })
   @ApiQuery({ name: 'assignedToId', required: false, type: String })
   @ApiQuery({ name: 'contactId', required: false, type: String })
+  @ApiQuery({ name: 'disposition', required: false, enum: ConversationDisposition })
   findAll(
     @Req() req: any,
     @Query('page') page?: string,
@@ -49,6 +50,7 @@ export class ConversationsController {
     @Query('status') status?: ConversationStatus,
     @Query('assignedToId') assignedToId?: string,
     @Query('contactId') contactId?: string,
+    @Query('disposition') disposition?: ConversationDisposition,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
@@ -58,6 +60,7 @@ export class ConversationsController {
       skip,
       take: limitNum,
       status,
+      disposition,
       assignedToId,
       contactId,
     });
@@ -86,6 +89,7 @@ export class ConversationsController {
       req.user.organizationId,
       id,
       updateConversationDto,
+      req.user.id,
     );
   }
 

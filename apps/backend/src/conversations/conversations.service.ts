@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
-import { Conversation, Prisma, ConversationStatus } from '@prisma/client';
+import { Conversation, Prisma, ConversationStatus, ConversationDisposition } from '@prisma/client';
 
 @Injectable()
 export class ConversationsService {
@@ -38,16 +38,18 @@ export class ConversationsService {
       skip?: number;
       take?: number;
       status?: ConversationStatus;
+      disposition?: ConversationDisposition;
       assignedToId?: string;
       contactId?: string;
       orderBy?: Prisma.ConversationOrderByWithRelationInput;
     },
   ) {
-    const { skip = 0, take = 20, status, assignedToId, contactId, orderBy } = params || {};
+    const { skip = 0, take = 20, status, disposition, assignedToId, contactId, orderBy } = params || {};
 
     const where: Prisma.ConversationWhereInput = {
       organizationId,
       ...(status && { status }),
+      ...(disposition && { disposition }),
       ...(assignedToId && { assignedToId }),
       ...(contactId && { contactId }),
     };
@@ -157,6 +159,7 @@ export class ConversationsService {
     organizationId: string,
     id: string,
     updateConversationDto: UpdateConversationDto,
+    userId?: string,
   ): Promise<Conversation> {
     const conversation = await this.prisma.conversation.findFirst({
       where: { id, organizationId },
@@ -168,9 +171,26 @@ export class ConversationsService {
 
     const updateData: any = { ...updateConversationDto };
 
-    // Si se cierra la conversación, guardar timestamp
+    // Si se resuelve la conversacion, guardar timestamp y quien resolvio
+    if (updateConversationDto.status === ConversationStatus.RESOLVED && !conversation.resolvedAt) {
+      updateData.resolvedAt = new Date();
+      if (userId) updateData.resolvedById = userId;
+    }
+
+    // Si se cierra la conversacion, guardar timestamp
     if (updateConversationDto.status === ConversationStatus.CLOSED) {
       updateData.closedAt = new Date();
+      if (!conversation.resolvedAt) {
+        updateData.resolvedAt = new Date();
+        if (userId) updateData.resolvedById = userId;
+      }
+    }
+
+    // Si se reabre, limpiar timestamps
+    if (updateConversationDto.status === ConversationStatus.OPEN) {
+      updateData.closedAt = null;
+      updateData.resolvedAt = null;
+      updateData.resolvedById = null;
     }
 
     return this.prisma.conversation.update({
