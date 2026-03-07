@@ -205,11 +205,15 @@ export class WhatsappService {
         // A failed send to an invalid number shouldn't kill the whole connection
       }
 
-      // Buscar o crear contacto
+      // Buscar o crear contacto - check both with and without lid: prefix
       let contact = await this.prisma.contact.findFirst({
         where: {
           organizationId,
-          phone: phoneNumber,
+          OR: [
+            { phone: phoneNumber },
+            { phone: sendDto.to }, // original value (may have lid: prefix)
+            { phone: `lid:${phoneNumber}` },
+          ],
         },
       });
 
@@ -217,7 +221,7 @@ export class WhatsappService {
         contact = await this.prisma.contact.create({
           data: {
             name: phoneNumber,
-            phone: phoneNumber,
+            phone: sendDto.to, // preserve the original format (lid: or plain)
             organizationId,
           },
         });
@@ -807,11 +811,15 @@ export class WhatsappService {
 
       this.logger.log(`📱 Extracted phone: ${storedPhone} (domain: ${jidDomain}) from JID: ${remoteJid}`);
 
-      // Buscar o crear contacto
+      // Buscar contacto - check both "lid:NUMBER" and "NUMBER" to prevent duplicates
       let contact = await this.prisma.contact.findFirst({
         where: {
           organizationId,
-          phone: storedPhone,
+          OR: [
+            { phone: storedPhone },
+            { phone: phoneNumber }, // Match old contacts without lid: prefix
+            ...(isLid ? [{ phone: `lid:${phoneNumber}` }] : []),
+          ],
         },
       });
 
@@ -824,12 +832,23 @@ export class WhatsappService {
             organizationId,
           },
         });
-      } else if (msg.pushName && contact.name !== msg.pushName && contact.name.startsWith('lid:')) {
-        // Update name if pushName is available and current name is just the LID
-        contact = await this.prisma.contact.update({
-          where: { id: contact.id },
-          data: { name: msg.pushName },
-        });
+      } else {
+        // Update phone to use lid: prefix if it was stored without it
+        const updates: any = {};
+        if (isLid && contact.phone && !contact.phone.startsWith('lid:')) {
+          updates.phone = storedPhone;
+        }
+        // Update name from pushName if current name is just a number/LID
+        if (msg.pushName && contact.name !== msg.pushName && /^[\dlid:]+$/.test(contact.name)) {
+          updates.name = msg.pushName;
+        }
+        if (Object.keys(updates).length > 0) {
+          contact = await this.prisma.contact.update({
+            where: { id: contact.id },
+            data: updates,
+          });
+          this.logger.log(`📇 Updated contact ${contact.id}: ${JSON.stringify(updates)}`);
+        }
       }
 
       // Buscar o crear conversación
