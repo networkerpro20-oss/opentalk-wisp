@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
@@ -6,6 +6,8 @@ import { Contact, Prisma } from '@prisma/client';
 
 @Injectable()
 export class ContactsService {
+  private readonly logger = new Logger(ContactsService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async create(
@@ -20,7 +22,7 @@ export class ContactsService {
       include: {
         conversations: {
           take: 5,
-          orderBy: { lastMessageAt: 'desc' },
+          orderBy: { updatedAt: 'desc' },
         },
         deals: {
           take: 5,
@@ -53,41 +55,49 @@ export class ContactsService {
       }),
     };
 
-    const [contacts, total] = await Promise.all([
-      this.prisma.contact.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { createdAt: 'desc' },
-        include: {
-          conversations: {
-            take: 1,
-            orderBy: { lastMessageAt: 'desc' },
-          },
-          deals: {
-            take: 1,
-            orderBy: { createdAt: 'desc' },
-          },
-          _count: {
-            select: {
-              conversations: true,
-              deals: true,
+    try {
+      const [contacts, total] = await Promise.all([
+        this.prisma.contact.findMany({
+          where,
+          skip,
+          take,
+          orderBy: orderBy || { createdAt: 'desc' },
+          include: {
+            conversations: {
+              take: 1,
+              orderBy: { updatedAt: 'desc' },
+            },
+            deals: {
+              take: 1,
+              orderBy: { createdAt: 'desc' },
+            },
+            _count: {
+              select: {
+                conversations: true,
+                deals: true,
+              },
             },
           },
-        },
-      }),
-      this.prisma.contact.count({ where }),
-    ]);
+        }),
+        this.prisma.contact.count({ where }),
+      ]);
 
-    return {
-      data: contacts,
-      meta: {
-        total,
-        page: Math.floor(skip / take) + 1,
-        lastPage: Math.ceil(total / take),
-        perPage: take,
-      },
-    };
+      return {
+        data: contacts,
+        meta: {
+          total,
+          page: Math.floor(skip / take) + 1,
+          lastPage: Math.ceil(total / take),
+          perPage: take,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch contacts for org ${organizationId}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 
   async findOne(organizationId: string, id: string): Promise<Contact> {
@@ -95,7 +105,7 @@ export class ContactsService {
       where: { id, organizationId },
       include: {
         conversations: {
-          orderBy: { lastMessageAt: 'desc' },
+          orderBy: { updatedAt: 'desc' },
           include: {
             assignedTo: {
               select: {

@@ -11,9 +11,9 @@ export default function ContactsPage() {
   const [search, setSearch] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: contactsData, isLoading } = useQuery({
+  const { data: contactsData, isLoading, error } = useQuery({
     queryKey: ['contacts', page, search],
-    queryFn: () => contactsAPI.list({ page, limit: 20, search }),
+    queryFn: () => contactsAPI.list({ page, limit: 20, search: search || undefined }),
   });
 
   const { data: stats } = useQuery({
@@ -36,6 +36,20 @@ export default function ContactsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-gray-500">Cargando contactos...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500">Error al cargar contactos: {(error as any)?.response?.data?.message || error.message}</p>
+        <button
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['contacts'] })}
+          className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
