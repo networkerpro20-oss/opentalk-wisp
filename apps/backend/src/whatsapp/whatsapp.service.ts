@@ -713,6 +713,53 @@ export class WhatsappService {
       // Event: Guardar credenciales
       socket.ev.on('creds.update', saveCreds);
 
+      // Event: Contact updates - resolve LID to real phone number
+      socket.ev.on('contacts.update', async (updates) => {
+        for (const update of updates) {
+          try {
+            if (!update.id) continue;
+            const lid = update.id.split('@')[0]?.split(':')[0];
+            // Check if this contact has a phone number mapping
+            const phoneNumber = (update as any).notify || (update as any).verifiedName || (update as any).phoneNumber;
+
+            this.logger.log(`📇 Contact update - id: ${update.id}, lid: ${lid}, data: ${JSON.stringify(update)}`);
+
+            // If we have a stored contact with lid: prefix and the update provides info
+            if (lid && update.id.endsWith('@lid')) {
+              const storedPhone = `lid:${lid}`;
+              const contact = await this.prisma.contact.findFirst({
+                where: { organizationId, phone: storedPhone },
+              });
+
+              if (contact) {
+                // Update pushName if available
+                const pushName = (update as any).notify || (update as any).verifiedName;
+                if (pushName && contact.name === lid) {
+                  await this.prisma.contact.update({
+                    where: { id: contact.id },
+                    data: { name: pushName },
+                  });
+                  this.logger.log(`📇 Updated contact name: ${lid} -> ${pushName}`);
+                }
+              }
+            }
+          } catch (error) {
+            this.logger.error(`Error processing contact update: ${error.message}`);
+          }
+        }
+      });
+
+      // Event: Contacts upsert - may contain LID to phone mappings
+      socket.ev.on('contacts.upsert', async (contacts) => {
+        for (const contact of contacts) {
+          try {
+            this.logger.log(`📇 Contact upsert - id: ${contact.id}, name: ${contact.name || contact.notify || 'unknown'}, data: ${JSON.stringify(contact)}`);
+          } catch (error) {
+            this.logger.error(`Error logging contact upsert: ${error.message}`);
+          }
+        }
+      });
+
       // Event: Mensajes entrantes
       socket.ev.on('messages.upsert', async ({ messages, type }) => {
         if (type !== 'notify') return;
@@ -781,6 +828,12 @@ export class WhatsappService {
             phone: storedPhone,
             organizationId,
           },
+        });
+      } else if (msg.pushName && contact.name !== msg.pushName && contact.name.startsWith('lid:')) {
+        // Update name if pushName is available and current name is just the LID
+        contact = await this.prisma.contact.update({
+          where: { id: contact.id },
+          data: { name: msg.pushName },
         });
       }
 
