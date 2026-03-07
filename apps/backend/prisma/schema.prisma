@@ -51,6 +51,8 @@ model Organization {
   routingRules  RoutingRule[]
   quickReplies  QuickReply[]
   knowledgeBase KnowledgeBase?
+  webhooks      Webhook[]
+  apiKeys       ApiKey[]
 
   @@index([slug])
   @@index([domain])
@@ -190,10 +192,13 @@ model WhatsAppInstance {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
+  // AI Auto-Responder
+  aiAutoRespond Boolean @default(false)
+
   // Relaciones
   conversations Conversation[]
   messages      Message[]
-  
+
   @@index([organizationId])
   @@map("whatsapp_instances")
 }
@@ -226,9 +231,12 @@ model Conversation {
   contactId String
   contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
   
-  // Análisis IA
+  // Analisis IA
   sentiment String? // positive, negative, neutral
   summary   String?
+  aiHandled Boolean @default(false)
+  aiTakenOverAt DateTime?
+  aiTakenOverById String?
   
   // Multi-tenancy
   organizationId String
@@ -950,4 +958,93 @@ enum KBSourceType {
   DOCUMENT
   WIZARD
   MANUAL
+}
+
+// ============================================
+// WEBHOOKS & API KEYS (Phase 3)
+// ============================================
+
+model Webhook {
+  id          String   @id @default(uuid())
+  name        String
+  url         String
+  secret      String?  // HMAC secret for signature verification
+  events      String[] // e.g. ["contact.created", "message.received"]
+  isActive    Boolean  @default(true)
+  maxRetries  Int      @default(3)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  logs        WebhookLog[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([isActive])
+  @@map("webhooks")
+}
+
+model WebhookLog {
+  id          String   @id @default(uuid())
+  webhookId   String
+  event       String
+  payload     Json
+  statusCode  Int?
+  responseBody String?
+  attempt     Int      @default(1)
+  success     Boolean  @default(false)
+  error       String?
+
+  webhook     Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@index([webhookId])
+  @@index([createdAt])
+  @@map("webhook_logs")
+}
+
+model ApiKey {
+  id          String   @id @default(uuid())
+  name        String
+  keyHash     String   @unique  // Hashed API key
+  prefix      String   // First 8 chars for identification (e.g. "otw_xxxx")
+  permissions String[] // e.g. ["contacts.read", "contacts.write", "messages.read"]
+  isActive    Boolean  @default(true)
+  rateLimit   Int      @default(100) // requests per minute
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([prefix])
+  @@map("api_keys")
+}
+
+// ============================================
+// AI AUTO-RESPONDER FEEDBACK (Phase 4)
+// ============================================
+
+model AiResponseFeedback {
+  id          String   @id @default(uuid())
+  messageId   String
+  aiResponse  String
+  agentResponse String?
+  wasUsed     Boolean  @default(false)
+  rating      Int?     // 1-5
+
+  organizationId String
+
+  createdAt   DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([messageId])
+  @@map("ai_response_feedback")
 }

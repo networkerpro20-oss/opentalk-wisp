@@ -30,6 +30,8 @@ import { TagsModule } from './tags/tags.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { PublicApiModule } from './public-api/public-api.module';
 
 @Module({
   imports: [
@@ -78,6 +80,8 @@ import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
     CampaignsModule,
     AnalyticsModule,
     KnowledgeBaseModule,
+    WebhooksModule,
+    PublicApiModule,
   ],
 })
 export class AppModule {}

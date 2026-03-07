@@ -19,6 +19,7 @@ const navigation = [
   { name: 'Base de Conocimiento', href: '/dashboard/knowledge-base', icon: '🧠' },
   { name: 'Equipos', href: '/dashboard/teams', icon: '👨‍👩‍👧‍👦' },
   { name: 'Usuarios', href: '/dashboard/users', icon: '👤' },
+  { name: 'Configuración', href: '/dashboard/settings', icon: '⚙️' },
 ];
 
 export default function DashboardLayout({

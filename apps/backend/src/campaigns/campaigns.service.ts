@@ -7,7 +7,7 @@ import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import OpenAI from 'openai';
 
-interface ABVariant {
+export interface ABVariant {
   id: string;
   message: string;
   weight: number;

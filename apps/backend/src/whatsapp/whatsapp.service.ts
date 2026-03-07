@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional, Inject, forwardRef } from '@nestjs/common';
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
@@ -22,6 +22,9 @@ import { SendMediaDto, MediaType } from './dto/send-media.dto';
 import { WhatsAppStatus, MessageDirection, MessageType, MessageStatus } from '@prisma/client';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { AiService } from '../ai/ai.service';
+import { KnowledgeBaseService } from '../knowledge-base/knowledge-base.service';
+import { WebhookDispatcherService } from '../webhooks/webhook-dispatcher.service';
 
 interface WAConnection {
   socket: WASocket;
@@ -45,6 +48,11 @@ export class WhatsappService {
     private eventsGateway: EventsGateway,
     @InjectQueue('flow-execution') private flowQueue: Queue,
     @InjectQueue('ai-processing') private aiQueue: Queue,
+    @Optional() @Inject(forwardRef(() => AiService))
+    private aiService?: AiService,
+    @Optional() @Inject(forwardRef(() => KnowledgeBaseService))
+    private knowledgeBaseService?: KnowledgeBaseService,
+    @Optional() private webhookDispatcher?: WebhookDispatcherService,
   ) {
     // Crear directorio de auth si no existe
     try {
@@ -992,8 +1000,116 @@ export class WhatsappService {
         contactId: contact.id,
         organizationId,
       }, { priority: 3 });
+
+      // Dispatch webhook event (fire-and-forget)
+      if (this.webhookDispatcher) {
+        this.webhookDispatcher.dispatch('message.received', organizationId, {
+          messageId: savedMessage.id,
+          content,
+          contactId: contact.id,
+          contactName: contact.name,
+          contactPhone: contact.phone,
+          conversationId: conversation.id,
+          messageType,
+        });
+      }
+
+      // AI Auto-Responder
+      await this.handleAiAutoResponse(
+        instanceId,
+        organizationId,
+        conversation,
+        contact,
+        content,
+        savedMessage.id,
+      );
     } catch (error) {
       this.logger.error(`Error handling incoming message: ${error.message}`);
+    }
+  }
+
+  /**
+   * AI Auto-Responder: automatically respond using KB if enabled
+   */
+  private async handleAiAutoResponse(
+    instanceId: string,
+    organizationId: string,
+    conversation: any,
+    contact: any,
+    messageContent: string,
+    messageId: string,
+  ) {
+    try {
+      // Check if auto-respond is enabled for this instance
+      const instance = await this.prisma.whatsAppInstance.findUnique({
+        where: { id: instanceId },
+        select: { aiAutoRespond: true },
+      });
+
+      if (!instance?.aiAutoRespond) return;
+
+      // Don't auto-respond if conversation is taken over by human
+      if (conversation.aiTakenOverAt) return;
+
+      // Skip if no AI service available
+      if (!this.aiService) return;
+
+      // Get recent conversation context
+      const recentMessages = await this.prisma.message.findMany({
+        where: { conversationId: conversation.id },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { content: true, direction: true },
+      });
+
+      const context = recentMessages
+        .slice(1)
+        .reverse()
+        .map(m => `${m.direction === 'INBOUND' ? 'Cliente' : 'Agente'}: ${m.content}`);
+
+      // Generate AI response with KB context
+      const aiResult = await this.aiService.generateAutoResponse(
+        messageContent,
+        context,
+        organizationId,
+      );
+
+      // Save AI feedback for learning
+      await this.prisma.aiResponseFeedback.create({
+        data: {
+          messageId,
+          aiResponse: aiResult.response,
+          wasUsed: !aiResult.needsHumanReview,
+          organizationId,
+        },
+      });
+
+      if (!aiResult.needsHumanReview && aiResult.response) {
+        // Send auto-response
+        await this.sendMessage(organizationId, {
+          instanceId,
+          to: contact.phone,
+          message: aiResult.response,
+        });
+
+        // Mark conversation as AI handled
+        await this.prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { aiHandled: true },
+        });
+
+        this.logger.log(`AI auto-responded to ${contact.phone} (confidence: ${aiResult.confidence})`);
+      } else {
+        // Emit low confidence event for flows
+        this.eventsGateway.emitToOrganization(organizationId, 'ai:low-confidence', {
+          conversationId: conversation.id,
+          contactId: contact.id,
+          suggestedResponse: aiResult.response,
+          confidence: aiResult.confidence,
+        });
+      }
+    } catch (error) {
+      this.logger.error(`AI auto-response error: ${error.message}`);
     }
   }
 
