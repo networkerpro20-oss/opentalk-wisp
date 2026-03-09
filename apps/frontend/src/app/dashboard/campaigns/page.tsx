@@ -53,6 +53,18 @@ export default function CampaignsPage() {
     },
   });
 
+  // Resume campaign
+  const resumeMutation = useMutation({
+    mutationFn: campaignsAPI.resume,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      toast.success('Campana reanudada');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Error al reanudar campana');
+    },
+  });
+
   // Delete campaign
   const deleteMutation = useMutation({
     mutationFn: campaignsAPI.delete,
@@ -234,8 +246,8 @@ export default function CampaignsPage() {
                   </button>
                 ) : campaign.status === 'PAUSED' ? (
                   <button
-                    onClick={() => startMutation.mutate(campaign.id)}
-                    disabled={startMutation.isPending}
+                    onClick={() => resumeMutation.mutate(campaign.id)}
+                    disabled={resumeMutation.isPending}
                     className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-1"
                   >
                     <Play size={16} />

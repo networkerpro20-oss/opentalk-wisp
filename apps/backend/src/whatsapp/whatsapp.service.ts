@@ -369,16 +369,23 @@ export class WhatsappService {
       // Enviar mensaje con media
       const sent = await connection.socket.sendMessage(jid, messageContent);
 
-      // Buscar o crear contacto
+      // Buscar o crear contacto - check both with and without lid: prefix
       let contact = await this.prisma.contact.findFirst({
-        where: { organizationId, phone: phoneNumber },
+        where: {
+          organizationId,
+          OR: [
+            { phone: phoneNumber },
+            { phone: sendDto.to }, // original value (may have lid: prefix)
+            { phone: `lid:${phoneNumber}` },
+          ],
+        },
       });
 
       if (!contact) {
         contact = await this.prisma.contact.create({
           data: {
             name: phoneNumber,
-            phone: phoneNumber,
+            phone: sendDto.to, // preserve the original format (lid: or plain)
             organizationId,
           },
         });

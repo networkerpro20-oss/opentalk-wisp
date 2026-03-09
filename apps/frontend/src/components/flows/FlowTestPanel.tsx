@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 import {
   Play,
   X,
   CheckCircle,
-  XCircle,
-  Clock,
   MessageSquare,
   TrendingUp,
   ArrowRight,
@@ -24,34 +23,18 @@ export function FlowTestPanel({ flowId, isOpen, onClose }: FlowTestPanelProps) {
   const [testMessage, setTestMessage] = useState('');
   const [testResults, setTestResults] = useState<any>(null);
 
-  // Fetch recent executions
-  const { data: executions, refetch } = useQuery({
-    queryKey: ['flow-executions', flowId],
-    queryFn: async () => {
-      const res = await fetch(`/api/flows/${flowId}/executions`);
-      if (!res.ok) throw new Error('Failed to load executions');
-      return res.json();
-    },
-    enabled: isOpen,
-  });
-
   // Test flow mutation
   const testMutation = useMutation({
     mutationFn: async (message: string) => {
-      const res = await fetch(`/api/flows/${flowId}/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-      });
-      if (!res.ok) throw new Error('Test failed');
-      return res.json();
+      const res = await api.post(`/flows/${flowId}/test`, { message, variables: { message } });
+      return res.data;
     },
     onSuccess: (data) => {
-      setTestResults(data);
+      setTestResults({ status: 'completed', message: data.message });
       toast.success('Test ejecutado exitosamente');
-      refetch();
     },
     onError: () => {
+      setTestResults({ status: 'failed', message: 'Error al ejecutar el flow' });
       toast.error('Error al ejecutar test');
     },
   });
@@ -171,106 +154,18 @@ export function FlowTestPanel({ flowId, isOpen, onClose }: FlowTestPanelProps) {
         </div>
       )}
 
-      {/* Execution Metrics */}
+      {/* Info */}
       <div className="flex-1 overflow-y-auto p-6">
         <h4 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
           <TrendingUp size={18} />
-          Ejecuciones Recientes
+          Prueba de Flow
         </h4>
 
-        {!executions || executions.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 text-sm">
-            <Clock size={32} className="mx-auto mb-2 text-gray-300" />
-            <p>No hay ejecuciones registradas</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {executions.slice(0, 10).map((exec: any) => (
-              <div
-                key={exec.id}
-                className="bg-white border rounded-lg p-3 hover:shadow-sm transition"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {exec.status === 'completed' ? (
-                      <CheckCircle size={16} className="text-green-600" />
-                    ) : exec.status === 'failed' ? (
-                      <XCircle size={16} className="text-red-600" />
-                    ) : (
-                      <Clock size={16} className="text-yellow-600" />
-                    )}
-                    <span className="text-xs font-medium text-gray-700">
-                      {new Date(exec.createdAt).toLocaleString('es-MX', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      exec.status === 'completed'
-                        ? 'bg-green-100 text-green-700'
-                        : exec.status === 'failed'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}
-                  >
-                    {exec.status}
-                  </span>
-                </div>
-
-                {exec.trigger && (
-                  <div className="flex items-start gap-2 mb-2">
-                    <MessageSquare size={14} className="text-gray-400 mt-0.5" />
-                    <span className="text-xs text-gray-600 line-clamp-2">
-                      {exec.trigger}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>{exec.nodesExecuted || 0} nodos</span>
-                  <span>{exec.duration || 0}ms</span>
-                </div>
-
-                {exec.error && (
-                  <div className="mt-2 text-xs text-red-600 bg-red-50 rounded p-2">
-                    {exec.error}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Stats Summary */}
-      {executions && executions.length > 0 && (
-        <div className="p-6 border-t bg-gray-50">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">
-                {executions.length}
-              </div>
-              <div className="text-xs text-gray-600">Total</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {executions.filter((e: any) => e.status === 'completed').length}
-              </div>
-              <div className="text-xs text-gray-600">Exitosas</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">
-                {executions.filter((e: any) => e.status === 'failed').length}
-              </div>
-              <div className="text-xs text-gray-600">Fallidas</div>
-            </div>
-          </div>
+        <div className="text-center py-12 text-gray-500 text-sm">
+          <MessageSquare size={32} className="mx-auto mb-2 text-gray-300" />
+          <p>Ingresa un mensaje arriba para probar el flow</p>
         </div>
-      )}
+      </div>
     </div>
   );
 }

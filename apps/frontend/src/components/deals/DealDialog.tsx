@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { X, DollarSign, Calendar, User, Building } from 'lucide-react';
 import { dealsAPI } from '@/lib/api-deals';
+import { contactsAPI } from '@/lib/api-extended';
+import { usersAPI } from '@/lib/api';
 
 interface DealDialogProps {
   isOpen: boolean;
@@ -49,21 +51,15 @@ export function DealDialog({ isOpen, onClose, deal, pipelineId, stageId }: DealD
   }, [deal, stageId]);
 
   // Fetch contacts for dropdown
-  const { data: contacts } = useQuery({
+  const { data: contactsData } = useQuery({
     queryKey: ['contacts'],
-    queryFn: async () => {
-      const response = await fetch('/api/contacts');
-      return response.json();
-    },
+    queryFn: () => contactsAPI.list({ limit: 100 }),
   });
 
   // Fetch users for assignment
-  const { data: users } = useQuery({
+  const { data: usersData } = useQuery({
     queryKey: ['users'],
-    queryFn: async () => {
-      const response = await fetch('/api/users');
-      return response.json();
-    },
+    queryFn: usersAPI.list,
   });
 
   // Fetch pipeline stages
@@ -229,7 +225,7 @@ export function DealDialog({ isOpen, onClose, deal, pipelineId, stageId }: DealD
                 required
               >
                 <option value="">Selecciona un contacto</option>
-                {contacts?.data?.map((contact: any) => (
+                {contactsData?.data?.map((contact: any) => (
                   <option key={contact.id} value={contact.id}>
                     {contact.name || contact.phoneNumber}
                   </option>
@@ -271,7 +267,7 @@ export function DealDialog({ isOpen, onClose, deal, pipelineId, stageId }: DealD
                 className="w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               >
                 <option value="">Sin asignar</option>
-                {users?.data?.map((user: any) => (
+                {(Array.isArray(usersData) ? usersData : []).map((user: any) => (
                   <option key={user.id} value={user.id}>
                     {user.firstName} {user.lastName}
                   </option>

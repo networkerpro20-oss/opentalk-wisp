@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { api } from '@/lib/api';
 
 interface Flow {
   id: string;
   name: string;
   trigger: string;
-  isActive: boolean;
+  status: 'ACTIVE' | 'INACTIVE';
   createdAt: string;
   updatedAt: string;
   config?: {
@@ -26,11 +27,8 @@ export default function FlowsPage() {
 
   const loadFlows = async () => {
     try {
-      const res = await fetch('/api/flows');
-      if (res.ok) {
-        const data = await res.json();
-        setFlows(data);
-      }
+      const res = await api.get('/flows');
+      setFlows(res.data);
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Error loading flows:', error);
@@ -41,10 +39,8 @@ export default function FlowsPage() {
 
   const toggleActive = async (id: string) => {
     try {
-      const res = await fetch(`/api/flows/${id}/toggle`, { method: 'POST' });
-      if (res.ok) {
-        loadFlows();
-      }
+      await api.post(`/flows/${id}/toggle`);
+      loadFlows();
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Error toggling flow:', error);
@@ -55,10 +51,8 @@ export default function FlowsPage() {
     if (!confirm('¿Estás seguro de eliminar este flow?')) return;
 
     try {
-      const res = await fetch(`/api/flows/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        loadFlows();
-      }
+      await api.delete(`/flows/${id}`);
+      loadFlows();
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Error deleting flow:', error);
@@ -67,16 +61,12 @@ export default function FlowsPage() {
 
   const testFlow = async (id: string) => {
     try {
-      const res = await fetch(`/api/flows/${id}/test`, { method: 'POST' });
-      if (res.ok) {
-        alert('✅ Flow ejecutado correctamente');
-      } else {
-        alert('❌ Error al ejecutar el flow');
-      }
+      await api.post(`/flows/${id}/test`);
+      alert('Flow ejecutado correctamente');
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Error testing flow:', error);
-      alert('❌ Error de conexión');
+      alert('Error al ejecutar el flow');
     }
   };
 
@@ -129,7 +119,7 @@ export default function FlowsPage() {
               <div>
                 <p className="text-sm text-gray-600">Activos</p>
                 <p className="text-3xl font-bold text-green-600 mt-1">
-                  {flows.filter((f) => f.isActive).length}
+                  {flows.filter((f) => f.status === 'ACTIVE').length}
                 </p>
               </div>
               <div className="text-4xl">✅</div>
@@ -141,7 +131,7 @@ export default function FlowsPage() {
               <div>
                 <p className="text-sm text-gray-600">Inactivos</p>
                 <p className="text-3xl font-bold text-gray-400 mt-1">
-                  {flows.filter((f) => !f.isActive).length}
+                  {flows.filter((f) => f.status !== 'ACTIVE').length}
                 </p>
               </div>
               <div className="text-4xl">⏸️</div>
@@ -180,12 +170,12 @@ export default function FlowsPage() {
                       <h3 className="text-xl font-semibold text-gray-900">{flow.name}</h3>
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          flow.isActive
+                          flow.status === 'ACTIVE'
                             ? 'bg-green-100 text-green-700'
                             : 'bg-gray-100 text-gray-600'
                         }`}
                       >
-                        {flow.isActive ? '✅ Activo' : '⏸️ Inactivo'}
+                        {flow.status === 'ACTIVE' ? '✅ Activo' : '⏸️ Inactivo'}
                       </span>
                     </div>
 
@@ -222,13 +212,13 @@ export default function FlowsPage() {
                     <button
                       onClick={() => toggleActive(flow.id)}
                       className={`px-4 py-2 rounded-lg font-medium text-sm ${
-                        flow.isActive
+                        flow.status === 'ACTIVE'
                           ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
                           : 'bg-green-100 text-green-700 hover:bg-green-200'
                       }`}
-                      title={flow.isActive ? 'Desactivar' : 'Activar'}
+                      title={flow.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}
                     >
-                      {flow.isActive ? '⏸️ Pausar' : '▶️ Activar'}
+                      {flow.status === 'ACTIVE' ? '⏸️ Pausar' : '▶️ Activar'}
                     </button>
 
                     <Link

@@ -113,10 +113,10 @@ export const knowledgeBaseAPI = {
 
   // Test response
   testResponse: async (message: string): Promise<{
-    response: string;
-    confidence: number;
-    suggestedActions: string[];
-    needsHumanReview: boolean;
+    query: string;
+    kbContext: string;
+    personality: string;
+    itemsFound: number;
   }> => {
     const { data } = await api.post('/knowledge-base/test-response', { message });
     return data;

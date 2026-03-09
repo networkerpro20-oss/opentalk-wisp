@@ -659,29 +659,20 @@ function TestTab() {
 
         {result && (
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-medium mb-2">Respuesta de la IA:</h3>
-            <p className="text-gray-800 mb-3">{result.response}</p>
+            <h3 className="font-medium mb-2">Consulta:</h3>
+            <p className="text-gray-600 mb-3 italic">{result.query}</p>
+            <h3 className="font-medium mb-2">Contexto de la Base de Conocimiento:</h3>
+            <p className="text-gray-800 mb-3 whitespace-pre-wrap">{result.kbContext || 'Sin contexto disponible'}</p>
             <div className="flex gap-4 text-sm">
-              <span className={`font-medium ${
-                result.confidence >= 0.7 ? 'text-green-600' :
-                result.confidence >= 0.4 ? 'text-yellow-600' : 'text-red-600'
-              }`}>
-                Confianza: {Math.round(result.confidence * 100)}%
+              <span className="font-medium text-indigo-600">
+                Personalidad: {result.personality}
               </span>
-              {result.needsHumanReview && (
-                <span className="text-orange-600 font-medium">Requiere revision humana</span>
-              )}
+              <span className={`font-medium ${
+                result.itemsFound > 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                Items encontrados: {result.itemsFound}
+              </span>
             </div>
-            {result.suggestedActions?.length > 0 && (
-              <div className="mt-2">
-                <span className="text-xs text-gray-500">Acciones sugeridas:</span>
-                <div className="flex gap-1 mt-1">
-                  {result.suggestedActions?.map((a: string, i: number) => (
-                    <span key={i} className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full">{a}</span>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>

@@ -1,11 +1,14 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AiService } from './ai.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AnalyzeSentimentDto } from './dto/analyze-sentiment.dto';
 import { GenerateResponseDto } from './dto/generate-response.dto';
 
 @ApiTags('ai')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('ai')
 export class AiController {
   constructor(
