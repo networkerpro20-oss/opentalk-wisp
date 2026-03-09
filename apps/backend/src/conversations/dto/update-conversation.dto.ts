@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsUUID, ValidateIf } from 'class-validator';
 import { ConversationStatus, Channel, ConversationDisposition } from '@prisma/client';
 
 export class UpdateConversationDto {
@@ -23,10 +23,11 @@ export class UpdateConversationDto {
   @IsUUID()
   whatsappInstanceId?: string;
 
-  @ApiPropertyOptional({ enum: ConversationDisposition })
+  @ApiPropertyOptional({ enum: ConversationDisposition, nullable: true })
   @IsOptional()
+  @ValidateIf((o) => o.disposition !== null)
   @IsEnum(ConversationDisposition)
-  disposition?: ConversationDisposition;
+  disposition?: ConversationDisposition | null;
 
   @ApiPropertyOptional()
   @IsOptional()
