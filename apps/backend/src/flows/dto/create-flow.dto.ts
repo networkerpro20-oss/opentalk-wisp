@@ -1,5 +1,7 @@
-import { IsString, IsNotEmpty, IsBoolean, IsOptional, IsArray, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsBoolean, IsOptional, IsArray, IsIn } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+
+const FLOW_TRIGGERS = ['NEW_CONTACT', 'NEW_MESSAGE', 'TAG_ADDED', 'DEAL_STAGE_CHANGE'] as const;
 
 export class CreateFlowDto {
   @ApiProperty({ description: 'Nombre del flow' })
@@ -12,11 +14,11 @@ export class CreateFlowDto {
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Trigger que activa el flow',
-    enum: ['NEW_CONTACT', 'NEW_MESSAGE', 'TAG_ADDED', 'DEAL_STAGE_CHANGE']
+    enum: FLOW_TRIGGERS,
   })
-  @IsEnum(['NEW_CONTACT', 'NEW_MESSAGE', 'TAG_ADDED', 'DEAL_STAGE_CHANGE'])
+  @IsIn(FLOW_TRIGGERS)
   @IsNotEmpty()
   trigger: string;
 

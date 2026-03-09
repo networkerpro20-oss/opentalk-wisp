@@ -135,7 +135,7 @@ export default function CampaignsPage() {
       </div>
 
       {/* Campaigns Grid */}
-      {!campaigns || campaigns.length === 0 ? (
+      {!campaigns || (Array.isArray(campaigns) ? campaigns : campaigns?.data || []).length === 0 ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <MessageSquare size={48} className="mx-auto text-gray-300 mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -154,7 +154,7 @@ export default function CampaignsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {campaigns.map((campaign: any) => (
+          {(Array.isArray(campaigns) ? campaigns : campaigns?.data || []).map((campaign: any) => (
             <div key={campaign.id} className="bg-white rounded-lg shadow hover:shadow-lg transition p-6">
               {/* Header */}
               <div className="flex items-start justify-between mb-4">

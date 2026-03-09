@@ -54,12 +54,12 @@ export default function ConversationsPage() {
 
       {/* Conversations List */}
       <div className="bg-white shadow rounded-lg divide-y divide-gray-200">
-        {conversationsData?.data.length === 0 ? (
+        {(conversationsData?.data ?? []).length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             No hay conversaciones
           </div>
         ) : (
-          conversationsData?.data.map((conversation: any) => (
+          (conversationsData?.data ?? []).map((conversation: any) => (
             <a
               key={conversation.id}
               href={`/dashboard/conversations/${conversation.id}`}

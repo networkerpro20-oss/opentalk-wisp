@@ -78,9 +78,9 @@ export default function TeamsPage() {
             </div>
           ))}
         </div>
-      ) : teams && teams.length > 0 ? (
+      ) : teams && (Array.isArray(teams) ? teams : []).length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {teams.map((team: Team) => (
+          {(Array.isArray(teams) ? teams : []).map((team: Team) => (
             <div
               key={team.id}
               className="bg-white rounded-lg border hover:shadow-lg transition p-6"

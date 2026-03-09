@@ -7,7 +7,7 @@ import { conversationsAPI, whatsappAPI } from '@/lib/api-extended';
 import { usersAPI } from '@/lib/api';
 import { connectSocket, getSocket } from '@/lib/socket';
 import { toast } from 'sonner';
-import { Paperclip, ChevronDown, ChevronUp, FileText, Download } from 'lucide-react';
+import { Paperclip, ChevronDown, ChevronUp, FileText, Download, TrendingUp, ExternalLink } from 'lucide-react';
 import { InternalNotesPanel } from '@/components/internal-notes/InternalNotesPanel';
 import { AISuggestions } from '@/components/ai/AISuggestions';
 import MediaUpload from '@/components/MediaUpload';
@@ -65,6 +65,7 @@ export default function ConversationDetailPage({ params }: { params: { id: strin
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversation', params.id] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
       toast.success('Conversacion actualizada');
     },
     onError: () => toast.error('Error al actualizar'),
@@ -303,6 +304,55 @@ export default function ConversationDetailPage({ params }: { params: { id: strin
             )}
           </div>
 
+          {/* Deal vinculado */}
+          {conversation.deal && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <TrendingUp size={14} className="text-emerald-600" />
+                  <span className="text-xs font-medium text-emerald-700 uppercase">Deal vinculado</span>
+                </div>
+                <a
+                  href={`/dashboard/deals`}
+                  className="text-emerald-600 hover:text-emerald-800"
+                  title="Ver en pipeline"
+                >
+                  <ExternalLink size={14} />
+                </a>
+              </div>
+              <p className="text-sm font-medium text-gray-900 truncate">{conversation.deal.title}</p>
+              <div className="mt-1 flex items-center gap-2 flex-wrap">
+                {conversation.deal.pipeline && (
+                  <span className="text-xs text-gray-500">{conversation.deal.pipeline.name}</span>
+                )}
+                {conversation.deal.stage && (
+                  <span
+                    className="px-1.5 py-0.5 rounded text-xs font-medium"
+                    style={{
+                      backgroundColor: conversation.deal.stage.color ? `${conversation.deal.stage.color}20` : '#e0e7ff',
+                      color: conversation.deal.stage.color || '#4338ca',
+                    }}
+                  >
+                    {conversation.deal.stage.name}
+                  </span>
+                )}
+                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                  conversation.deal.status === 'WON' ? 'bg-green-100 text-green-700' :
+                  conversation.deal.status === 'LOST' ? 'bg-red-100 text-red-700' :
+                  'bg-blue-100 text-blue-700'
+                }`}>
+                  {conversation.deal.status === 'WON' ? 'Ganado' :
+                   conversation.deal.status === 'LOST' ? 'Perdido' : 'Abierto'}
+                </span>
+              </div>
+              {conversation.deal.value > 0 && (
+                <p className="mt-1 text-sm font-semibold text-emerald-700">
+                  {conversation.deal.currency || 'USD'} {Number(conversation.deal.value).toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Asignar Agente */}
           <div>
             <label className="text-xs font-medium text-gray-500 uppercase">Asignado a</label>
@@ -462,7 +512,7 @@ export default function ConversationDetailPage({ params }: { params: { id: strin
 
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {conversation.messages.map((msg: any) => (
+          {(conversation.messages ?? []).map((msg: any) => (
             <div
               key={msg.id}
               className={`flex ${msg.direction === 'OUTBOUND' ? 'justify-end' : 'justify-start'}`}

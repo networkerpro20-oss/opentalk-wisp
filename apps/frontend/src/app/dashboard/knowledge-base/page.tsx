@@ -676,7 +676,7 @@ function TestTab() {
               <div className="mt-2">
                 <span className="text-xs text-gray-500">Acciones sugeridas:</span>
                 <div className="flex gap-1 mt-1">
-                  {result.suggestedActions.map((a: string, i: number) => (
+                  {result.suggestedActions?.map((a: string, i: number) => (
                     <span key={i} className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full">{a}</span>
                   ))}
                 </div>

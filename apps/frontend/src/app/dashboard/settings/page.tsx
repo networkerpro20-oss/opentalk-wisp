@@ -158,7 +158,7 @@ function WebhooksTab() {
         <div className="text-center py-12 text-gray-500">No hay webhooks configurados</div>
       ) : (
         <div className="space-y-3">
-          {webhooks.map((wh: any) => (
+          {(webhooks ?? []).map((wh: any) => (
             <div key={wh.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
               <div>
                 <div className="flex items-center gap-2">
@@ -331,7 +331,7 @@ function ApiKeysTab() {
         <div className="text-center py-12 text-gray-500">No hay API Keys</div>
       ) : (
         <div className="space-y-3">
-          {keys.map((key: any) => (
+          {(keys ?? []).map((key: any) => (
             <div key={key.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
               <div>
                 <div className="flex items-center gap-2">

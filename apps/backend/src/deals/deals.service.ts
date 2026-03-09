@@ -342,6 +342,13 @@ export class DealsService {
                     avatar: true,
                   },
                 },
+                conversation: {
+                  select: {
+                    id: true,
+                    status: true,
+                    disposition: true,
+                  },
+                },
               },
             },
             _count: {

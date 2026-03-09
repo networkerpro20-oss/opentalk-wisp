@@ -76,7 +76,7 @@ function FlowCanvas({ onSave, flowId }: { onSave: () => void; flowId: string }) 
       if (!type || !reactFlowWrapper.current || !reactFlowInstance) return;
 
       const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
-      const position = reactFlowInstance.project({
+      const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX - reactFlowBounds.left,
         y: event.clientY - reactFlowBounds.top,
       });

@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFlowDto } from './dto/create-flow.dto';
 import { UpdateFlowDto } from './dto/update-flow.dto';
@@ -14,22 +14,32 @@ export class FlowsService {
    * Crear un nuevo flow
    */
   async create(organizationId: string, createFlowDto: CreateFlowDto) {
-    const flow = await this.prisma.flow.create({
-      data: {
-        name: createFlowDto.name,
-        trigger: createFlowDto.trigger as any,
-        status: createFlowDto.isActive ? 'ACTIVE' : 'INACTIVE',
-        organizationId,
-        config: {
-          description: createFlowDto.description,
-          nodes: createFlowDto.nodes,
-          edges: createFlowDto.edges,
-        } as any,
-      },
-    });
+    try {
+      const flow = await this.prisma.flow.create({
+        data: {
+          name: createFlowDto.name,
+          trigger: createFlowDto.trigger as any,
+          status: createFlowDto.isActive ? 'ACTIVE' : 'INACTIVE',
+          organizationId,
+          config: {
+            description: createFlowDto.description || '',
+            nodes: createFlowDto.nodes || [],
+            edges: createFlowDto.edges || [],
+          } as any,
+        },
+      });
 
-    this.logger.log(`Flow created: ${flow.id}`);
-    return flow;
+      this.logger.log(`Flow created: ${flow.id}`);
+      return flow;
+    } catch (error) {
+      this.logger.error('Error creating flow:', error);
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2003') {
+          throw new BadRequestException('Invalid organization ID');
+        }
+      }
+      throw new InternalServerErrorException('Failed to create flow');
+    }
   }
 
   /**

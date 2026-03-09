@@ -149,7 +149,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
             <div className="mt-4 pt-4 border-t">
               <span className="text-xs font-medium text-gray-500 uppercase">Tags</span>
               <div className="flex flex-wrap gap-2 mt-2">
-                {contact.tags.map((ct: any) => (
+                {contact.tags?.map((ct: any) => (
                   <span
                     key={ct.tag.id}
                     className="px-2 py-1 text-xs rounded-full"
@@ -170,7 +170,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
           </h2>
           {contact.conversations?.length > 0 ? (
             <div className="space-y-3">
-              {contact.conversations.map((conv: any) => (
+              {contact.conversations?.map((conv: any) => (
                 <Link
                   key={conv.id}
                   href={`/dashboard/conversations/${conv.id}`}
@@ -210,7 +210,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
           </h2>
           {contact.deals?.length > 0 ? (
             <div className="space-y-3">
-              {contact.deals.map((deal: any) => (
+              {contact.deals?.map((deal: any) => (
                 <div key={deal.id} className="p-3 rounded-lg border border-gray-200">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-sm text-gray-900">{deal.title}</span>
@@ -246,7 +246,7 @@ export default function ContactDetailPage({ params }: { params: { id: string } }
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Actividad Reciente</h2>
           <div className="space-y-3">
-            {contact.activities.map((activity: any) => (
+            {contact.activities?.map((activity: any) => (
               <div key={activity.id} className="flex items-start space-x-3 text-sm">
                 <span className="text-gray-400 min-w-[80px]">
                   {new Date(activity.createdAt).toLocaleDateString('es')}
