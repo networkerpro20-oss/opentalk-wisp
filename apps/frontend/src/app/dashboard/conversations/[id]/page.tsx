@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { conversationsAPI, whatsappAPI } from '@/lib/api-extended';
 import { usersAPI } from '@/lib/api';
@@ -10,6 +11,11 @@ import { Paperclip, ChevronDown, ChevronUp, FileText, Download } from 'lucide-re
 import { InternalNotesPanel } from '@/components/internal-notes/InternalNotesPanel';
 import { AISuggestions } from '@/components/ai/AISuggestions';
 import MediaUpload from '@/components/MediaUpload';
+
+const ImageEditorModal = dynamic(
+  () => import('@/components/image-editor/ImageEditorModal'),
+  { ssr: false }
+);
 
 const STATUS_OPTIONS = [
   { value: 'OPEN', label: 'Abierta', color: 'bg-green-100 text-green-700 border-green-300' },
@@ -38,6 +44,8 @@ export default function ConversationDetailPage({ params }: { params: { id: strin
   const [showNotes, setShowNotes] = useState(false);
   const [dispositionNote, setDispositionNote] = useState('');
   const [showDispositionNote, setShowDispositionNote] = useState(false);
+  const [pastedImage, setPastedImage] = useState<string | null>(null);
+  const [showPasteEditor, setShowPasteEditor] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -143,6 +151,55 @@ export default function ConversationDetailPage({ params }: { params: { id: strin
       socket.off('message:new', handleNewMessage);
     };
   }, [params.id, queryClient]);
+
+  // Handle Ctrl+V paste of images from clipboard
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const blob = item.getAsFile();
+          if (!blob) return;
+
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result as string;
+            setPastedImage(base64);
+            setShowPasteEditor(true);
+          };
+          reader.readAsDataURL(blob);
+          return;
+        }
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, []);
+
+  const handlePasteEditorConfirm = useCallback(async (editedBase64: string, caption: string) => {
+    if (!conversation?.whatsappInstance?.id) return;
+    try {
+      await whatsappAPI.sendMedia({
+        instanceId: conversation.whatsappInstance.id,
+        to: conversation.contact.phone,
+        type: 'image',
+        mediaUrl: editedBase64,
+        caption: caption || undefined,
+        mimeType: 'image/jpeg',
+      });
+      queryClient.invalidateQueries({ queryKey: ['conversation', params.id] });
+      setPastedImage(null);
+      setShowPasteEditor(false);
+      toast.success('Imagen enviada');
+    } catch {
+      toast.error('Error al enviar imagen');
+    }
+  }, [conversation, queryClient, params.id]);
 
   if (isLoading) {
     return (
@@ -523,6 +580,15 @@ export default function ConversationDetailPage({ params }: { params: { id: strin
           )}
         </div>
       </div>
+      {/* Image Editor for pasted images (Ctrl+V) */}
+      {pastedImage && (
+        <ImageEditorModal
+          imageSrc={pastedImage}
+          isOpen={showPasteEditor}
+          onClose={() => { setShowPasteEditor(false); setPastedImage(null); }}
+          onConfirm={handlePasteEditorConfirm}
+        />
+      )}
     </div>
   );
 }
