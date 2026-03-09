@@ -882,26 +882,44 @@ export class WhatsappService {
 
       // Extraer contenido del mensaje y tipo
       let content = '';
-      let messageType: any = MessageType.TEXT; // Usar any temporalmente para evitar error de tipos
+      let messageType: any = MessageType.TEXT;
       let mediaUrl: string | null = null;
 
-      // Determinar tipo de mensaje y extraer contenido
-      if (msg.message.conversation || msg.message.extendedTextMessage) {
-        content = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
+      // Unwrap nested message types (viewOnce, ephemeral, etc.)
+      let innerMessage = msg.message;
+      if (innerMessage.viewOnceMessage) {
+        innerMessage = innerMessage.viewOnceMessage.message || innerMessage;
+      }
+      if (innerMessage.viewOnceMessageV2) {
+        innerMessage = innerMessage.viewOnceMessageV2.message || innerMessage;
+      }
+      if (innerMessage.viewOnceMessageV2Extension) {
+        innerMessage = innerMessage.viewOnceMessageV2Extension.message || innerMessage;
+      }
+      if (innerMessage.ephemeralMessage) {
+        innerMessage = innerMessage.ephemeralMessage.message || innerMessage;
+      }
+      if (innerMessage.documentWithCaptionMessage) {
+        innerMessage = innerMessage.documentWithCaptionMessage.message || innerMessage;
+      }
+
+      // Determinar tipo de mensaje y extraer contenido (using unwrapped innerMessage)
+      if (innerMessage.conversation || innerMessage.extendedTextMessage) {
+        content = innerMessage.conversation || innerMessage.extendedTextMessage?.text || '';
         messageType = 'TEXT';
-      } else if (msg.message.imageMessage) {
-        content = msg.message.imageMessage.caption || '[Imagen]';
+      } else if (innerMessage.imageMessage) {
+        content = innerMessage.imageMessage.caption || '[Imagen]';
         messageType = 'IMAGE';
-        // Descargar y guardar imagen
         try {
           const buffer = await downloadMediaMessage(msg as any, 'buffer', {});
           const base64 = buffer.toString('base64');
-          mediaUrl = `data:image/jpeg;base64,${base64}`;
+          const mime = innerMessage.imageMessage.mimetype || 'image/jpeg';
+          mediaUrl = `data:${mime};base64,${base64}`;
         } catch (err) {
           this.logger.error(`Error downloading image: ${err.message}`);
         }
-      } else if (msg.message.videoMessage) {
-        content = msg.message.videoMessage.caption || '[Video]';
+      } else if (innerMessage.videoMessage) {
+        content = innerMessage.videoMessage.caption || '[Video]';
         messageType = 'VIDEO';
         try {
           const buffer = await downloadMediaMessage(msg as any, 'buffer', {});
@@ -910,7 +928,7 @@ export class WhatsappService {
         } catch (err) {
           this.logger.error(`Error downloading video: ${err.message}`);
         }
-      } else if (msg.message.audioMessage) {
+      } else if (innerMessage.audioMessage) {
         content = '[Audio]';
         messageType = 'AUDIO';
         try {
@@ -920,22 +938,22 @@ export class WhatsappService {
         } catch (err) {
           this.logger.error(`Error downloading audio: ${err.message}`);
         }
-      } else if (msg.message.documentMessage) {
-        content = msg.message.documentMessage.caption || `[Documento: ${msg.message.documentMessage.fileName || 'archivo'}]`;
+      } else if (innerMessage.documentMessage) {
+        content = innerMessage.documentMessage.caption || `[Documento: ${innerMessage.documentMessage.fileName || 'archivo'}]`;
         messageType = 'DOCUMENT';
         try {
           const buffer = await downloadMediaMessage(msg as any, 'buffer', {});
           const base64 = buffer.toString('base64');
-          const mimeType = msg.message.documentMessage.mimetype || 'application/octet-stream';
+          const mimeType = innerMessage.documentMessage.mimetype || 'application/octet-stream';
           mediaUrl = `data:${mimeType};base64,${base64}`;
         } catch (err) {
           this.logger.error(`Error downloading document: ${err.message}`);
         }
-      } else if (msg.message.locationMessage) {
-        const loc = msg.message.locationMessage;
+      } else if (innerMessage.locationMessage) {
+        const loc = innerMessage.locationMessage;
         content = `[Ubicación: ${loc.degreesLatitude}, ${loc.degreesLongitude}]`;
         messageType = 'LOCATION';
-      } else if (msg.message.stickerMessage) {
+      } else if (innerMessage.stickerMessage) {
         content = '[Sticker]';
         messageType = 'IMAGE';
         try {
@@ -945,10 +963,13 @@ export class WhatsappService {
         } catch (err) {
           this.logger.error(`Error downloading sticker: ${err.message}`);
         }
-      } else if (msg.message.contactMessage) {
-        content = `[Contacto: ${msg.message.contactMessage.displayName || 'Sin nombre'}]`;
+      } else if (innerMessage.contactMessage) {
+        content = `[Contacto: ${innerMessage.contactMessage.displayName || 'Sin nombre'}]`;
         messageType = 'CONTACT';
       } else {
+        // Log unrecognized message type for debugging
+        const keys = Object.keys(innerMessage).filter(k => k !== 'messageContextInfo');
+        this.logger.warn(`Unsupported message type: ${keys.join(', ')}`);
         content = '[Mensaje no soportado]';
         messageType = 'TEXT';
       }
