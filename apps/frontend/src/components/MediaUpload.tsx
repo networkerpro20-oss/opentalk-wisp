@@ -1,8 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { whatsappAPI } from '@/lib/api-extended';
+
+const ImageEditorModal = dynamic(
+  () => import('@/components/image-editor/ImageEditorModal'),
+  { ssr: false }
+);
 
 interface MediaUploadProps {
   instanceId: string;
@@ -14,6 +20,7 @@ export default function MediaUpload({ instanceId, recipientPhone, onSuccess }: M
   const [file, setFile] = useState<File | null>(null);
   const [caption, setCaption] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
+  const [showEditor, setShowEditor] = useState(false);
   const queryClient = useQueryClient();
 
   const sendMediaMutation = useMutation({
@@ -23,6 +30,7 @@ export default function MediaUpload({ instanceId, recipientPhone, onSuccess }: M
       setFile(null);
       setCaption('');
       setPreview(null);
+      setShowEditor(false);
       onSuccess?.();
     },
   });
@@ -33,27 +41,43 @@ export default function MediaUpload({ instanceId, recipientPhone, onSuccess }: M
 
     setFile(selectedFile);
 
-    // Crear preview para imágenes
     if (selectedFile.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPreview(reader.result as string);
+        const base64 = reader.result as string;
+        setPreview(base64);
+        // Open image editor automatically for images
+        setShowEditor(true);
       };
       reader.readAsDataURL(selectedFile);
     } else {
       setPreview(null);
+      setShowEditor(false);
+    }
+  };
+
+  const handleEditorConfirm = async (editedBase64: string, editorCaption: string) => {
+    try {
+      await sendMediaMutation.mutateAsync({
+        instanceId,
+        to: recipientPhone,
+        type: 'image',
+        mediaUrl: editedBase64,
+        caption: editorCaption || undefined,
+        mimeType: 'image/jpeg',
+      });
+    } catch (error) {
+      console.error('Error sending edited image:', error);
     }
   };
 
   const handleSend = async () => {
     if (!file) return;
 
-    // Convertir archivo a base64
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64Data = reader.result as string;
-      
-      // Determinar tipo de media
+
       let type: 'image' | 'video' | 'audio' | 'document' = 'document';
       if (file.type.startsWith('image/')) type = 'image';
       else if (file.type.startsWith('video/')) type = 'video';
@@ -70,7 +94,6 @@ export default function MediaUpload({ instanceId, recipientPhone, onSuccess }: M
           mimeType: file.type,
         });
       } catch (error) {
-        // eslint-disable-next-line no-console
         console.error('Error sending media:', error);
       }
     };
@@ -98,19 +121,38 @@ export default function MediaUpload({ instanceId, recipientPhone, onSuccess }: M
           />
         </div>
 
-        {/* Preview */}
+        {/* Image Editor Modal */}
         {preview && (
+          <ImageEditorModal
+            imageSrc={preview}
+            isOpen={showEditor}
+            onClose={() => setShowEditor(false)}
+            onConfirm={handleEditorConfirm}
+          />
+        )}
+
+        {/* Preview for images (when editor is closed) */}
+        {preview && !showEditor && (
           <div className="mt-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={preview}
-              alt="Preview"
-              className="max-w-xs max-h-48 rounded-lg"
-            />
+            <div className="relative group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={preview}
+                alt="Preview"
+                className="max-w-xs max-h-48 rounded-lg cursor-pointer"
+                onClick={() => setShowEditor(true)}
+              />
+              <div
+                className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                onClick={() => setShowEditor(true)}
+              >
+                <span className="text-white text-sm font-medium">Editar imagen</span>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* File Info */}
+        {/* File Info for non-image files */}
         {file && !preview && (
           <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
             <p className="font-medium">{file.name}</p>
@@ -120,41 +162,39 @@ export default function MediaUpload({ instanceId, recipientPhone, onSuccess }: M
           </div>
         )}
 
-        {/* Caption */}
-        {file && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Pie de foto / Descripción (opcional)
-            </label>
-            <input
-              type="text"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="Agrega una descripción..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
-        )}
-
-        {/* Send Button */}
-        {file && (
-          <button
-            onClick={handleSend}
-            disabled={sendMediaMutation.isPending}
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {sendMediaMutation.isPending ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Enviando...
-              </span>
-            ) : (
-              `Enviar ${file.type.split('/')[0]}`
-            )}
-          </button>
+        {/* Caption + Send for non-image files */}
+        {file && !file.type.startsWith('image/') && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Descripcion (opcional)
+              </label>
+              <input
+                type="text"
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder="Agrega una descripcion..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+            </div>
+            <button
+              onClick={handleSend}
+              disabled={sendMediaMutation.isPending}
+              className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {sendMediaMutation.isPending ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Enviando...
+                </span>
+              ) : (
+                `Enviar ${file.type.split('/')[0]}`
+              )}
+            </button>
+          </>
         )}
 
         {/* Error Message */}
