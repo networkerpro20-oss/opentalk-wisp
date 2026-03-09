@@ -10,29 +10,14 @@ interface EditorCanvasProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
-const MAX_IMAGE_SIZE = 1920;
-
-function downscaleImage(img: HTMLImageElement): HTMLCanvasElement {
-  let { width, height } = img;
-  if (width > MAX_IMAGE_SIZE || height > MAX_IMAGE_SIZE) {
-    const ratio = Math.min(MAX_IMAGE_SIZE / width, MAX_IMAGE_SIZE / height);
-    width = Math.round(width * ratio);
-    height = Math.round(height * ratio);
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(img, 0, 0, width, height);
-  return canvas;
-}
+const MAX_IMAGE_SIZE = 1280;
 
 export default function EditorCanvas({ imageSrc, stageRef, containerRef }: EditorCanvasProps) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
-  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [ready, setReady] = useState(false);
   const isDrawing = useRef(false);
   const currentStroke = useRef<number[]>([]);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -43,37 +28,51 @@ export default function EditorCanvas({ imageSrc, stageRef, containerRef }: Edito
     setSelectedAnnotationId, setTextInputPosition, setIsAddingText,
   } = useEditorState();
 
-  // Load image
+  // Load image directly (no double conversion)
   useEffect(() => {
     const img = new window.Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const canvas = downscaleImage(img);
-      const downscaled = new window.Image();
-      downscaled.onload = () => {
-        setImage(downscaled);
-        setImageSize({ width: downscaled.width, height: downscaled.height });
-      };
-      downscaled.src = canvas.toDataURL('image/jpeg', 0.95);
+      // Downscale if needed using a canvas
+      if (img.width > MAX_IMAGE_SIZE || img.height > MAX_IMAGE_SIZE) {
+        const ratio = Math.min(MAX_IMAGE_SIZE / img.width, MAX_IMAGE_SIZE / img.height);
+        const w = Math.round(img.width * ratio);
+        const h = Math.round(img.height * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, w, h);
+        const smallImg = new window.Image();
+        smallImg.onload = () => setImage(smallImg);
+        smallImg.src = canvas.toDataURL('image/jpeg', 0.85);
+      } else {
+        setImage(img);
+      }
     };
     img.src = imageSrc;
   }, [imageSrc]);
 
-  // Calculate stage size to fit container
+  // Calculate stage size - use polling to wait for container dimensions
   useEffect(() => {
+    if (!image) return;
+    const img = image;
+
     function updateSize() {
       const container = containerRef.current;
-      if (!container || !image) return;
+      if (!container) return false;
 
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
+
+      // Container not yet laid out
+      if (containerWidth === 0 || containerHeight === 0) return false;
+
       const isRotated = rotation % 180 !== 0;
-      const imgW = isRotated ? image.height : image.width;
-      const imgH = isRotated ? image.width : image.height;
+      const imgW = isRotated ? img.height : img.width;
+      const imgH = isRotated ? img.width : img.height;
 
-      const scaleX = containerWidth / imgW;
-      const scaleY = containerHeight / imgH;
-      const fitScale = Math.min(scaleX, scaleY, 1);
-
+      const fitScale = Math.min(containerWidth / imgW, containerHeight / imgH, 1);
       const stageW = Math.round(imgW * fitScale);
       const stageH = Math.round(imgH * fitScale);
 
@@ -83,11 +82,24 @@ export default function EditorCanvas({ imageSrc, stageRef, containerRef }: Edito
         x: Math.round((containerWidth - stageW) / 2),
         y: Math.round((containerHeight - stageH) / 2),
       });
+      setReady(true);
+      return true;
     }
 
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
+    // Try immediately, then retry with rAF if container not ready
+    if (!updateSize()) {
+      let attempts = 0;
+      const tryUpdate = () => {
+        if (updateSize() || attempts > 20) return;
+        attempts++;
+        requestAnimationFrame(tryUpdate);
+      };
+      requestAnimationFrame(tryUpdate);
+    }
+
+    const handleResize = () => updateSize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [image, rotation, containerRef]);
 
   // Transformer for selected text
@@ -113,7 +125,6 @@ export default function EditorCanvas({ imageSrc, stageRef, containerRef }: Edito
     return { x: pos.x / scale, y: pos.y / scale };
   }, [stageRef, scale]);
 
-  // Drawing handlers
   const handlePointerDown = useCallback(() => {
     if (tool === EditorTool.DRAW) {
       isDrawing.current = true;
@@ -133,9 +144,7 @@ export default function EditorCanvas({ imageSrc, stageRef, containerRef }: Edito
     const pos = getPointerPos();
     if (pos) {
       currentStroke.current = [...currentStroke.current, pos.x, pos.y];
-      // Force re-render for live stroke preview
-      const stage = stageRef.current;
-      if (stage) stage.batchDraw();
+      stageRef.current?.batchDraw();
     }
   }, [tool, getPointerPos, stageRef]);
 
@@ -176,7 +185,13 @@ export default function EditorCanvas({ imageSrc, stageRef, containerRef }: Edito
     } as Partial<TextAnnotation>);
   }, [updateAnnotation]);
 
-  if (!image || stageSize.width === 0) return null;
+  if (!image || !ready) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-gray-400 text-sm">Cargando imagen...</div>
+      </div>
+    );
+  }
 
   const isRotated = rotation % 180 !== 0;
 
@@ -199,18 +214,16 @@ export default function EditorCanvas({ imageSrc, stageRef, containerRef }: Edito
         style={{ cursor: tool === EditorTool.DRAW ? 'crosshair' : tool === EditorTool.TEXT ? 'text' : 'default' }}
       >
         <Layer>
-          {/* Background image */}
           <KonvaImage
             name="background-image"
             image={image}
-            x={isRotated ? (image.height) : 0}
-            y={isRotated ? 0 : 0}
+            x={isRotated ? image.height : 0}
+            y={0}
             rotation={rotation}
             width={image.width}
             height={image.height}
           />
 
-          {/* Stroke annotations */}
           {annotations.filter((a): a is StrokeAnnotation => a.type === 'stroke').map((stroke) => (
             <Line
               key={stroke.id}
@@ -224,19 +237,6 @@ export default function EditorCanvas({ imageSrc, stageRef, containerRef }: Edito
             />
           ))}
 
-          {/* Live drawing stroke */}
-          {isDrawing.current && currentStroke.current.length >= 4 && (
-            <Line
-              points={currentStroke.current}
-              stroke={brushColor}
-              strokeWidth={brushSize / scale}
-              tension={0.5}
-              lineCap="round"
-              lineJoin="round"
-            />
-          )}
-
-          {/* Text annotations */}
           {annotations.filter((a): a is TextAnnotation => a.type === 'text').map((t) => (
             <Text
               key={t.id}
@@ -257,7 +257,6 @@ export default function EditorCanvas({ imageSrc, stageRef, containerRef }: Edito
             />
           ))}
 
-          {/* Transformer for selected text */}
           <Transformer
             ref={transformerRef}
             boundBoxFunc={(oldBox, newBox) => {
