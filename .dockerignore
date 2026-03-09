@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# Frontend (not needed for backend build)
+apps/frontend/node_modules
+apps/frontend/.next
+apps/frontend/out
+
+# IDE
+.vscode
+.idea
+
+# Docs
+*.md
+LICENSE
+
+# Environment files
+.env*
+!.env.example
+
+# Coverage and tests
+coverage
+**/*.spec.ts
+**/*.test.ts
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debug logs
+npm-debug.log*
+pnpm-debug.log*
+
+# Claude
+.claude

@@ -60,7 +60,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # Docker
-.dockerignore
 
 # PM2
 .pm2/
