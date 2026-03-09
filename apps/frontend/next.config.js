@@ -2,6 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  webpack: (config) => {
+    // Konva tries to import 'canvas' for server-side rendering
+    // We only use it client-side via dynamic import, so stub it out
+    config.externals = [...(config.externals || []), { canvas: 'canvas' }];
+    return config;
+  },
   images: {
     domains: ['localhost'],
     // Permitir Data URLs (base64) para QR codes
